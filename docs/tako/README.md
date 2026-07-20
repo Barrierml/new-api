@@ -41,10 +41,12 @@ new-api 已覆盖 PAR 套餐/用户/key 体系绝大部分(订阅状态机 / 窗
 - [ ] 新 sub2api:瘦身现有 vs 新建实例
 - [ ] `cr_` 前缀:改 token 生成 vs 迁移时全量换发
 
-### 🔍 待技术确认(我来查)
-- [ ] `common.Password2Hash` / `ValidatePasswordAndHash` 是否支持 argon2id(否则迁移期双验 + rehash)
-- [ ] `controller/subscription.go` 的 admin API 端点(套餐管理 CRUD)
-- [ ] oauth Google via OIDC 接法
+### ✅ 技术确认结论(2026-07-20)
+- **密码**:`common/crypto.go` 只用 bcrypt(`Password2Hash`/`ValidatePasswordAndHash`),全仓无 argon2 → 阶段一登录需改 `ValidatePasswordAndHash` 加 argon2id 分支(检测 `$argon2id$` 前缀 → argon2 验证 → rehash 成 bcrypt);确认 `go.mod` 含 `golang.org/x/crypto` 的 argon2
+- **套餐管理**:`controller/subscription.go` admin CRUD 完整(`/subscription/admin/*`:list/create/update/status/bind/create-user-sub/reset/invalidate/delete)+ 支付路由 epay/stripe/creem/waffo/balance → **不开发,直接用 API 建 5 档 plan**
+- **Google OAuth**:无独立 google provider,但有通用 `OIDCProvider`(`oauth/oidc.go`)→ 用 OIDC 接 Google(配 system_setting 的 OIDC endpoint)→ **不开发**;PAR Google 绑定 → `users.oidc_id`
+
+> **阶段一代码改造只剩 1 处**(argon2id 兼容),其余套餐 / key / Google 均为配置 + 数据迁移。
 
 ## 原则
 
