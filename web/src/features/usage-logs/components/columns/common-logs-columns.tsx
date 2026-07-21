@@ -351,7 +351,8 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             ? `${log.channel_name} #${log.channel}`
             : `#${log.channel}`
           const channelIdDisplay = `#${log.channel}`
-          const channelName = sensitiveVisible ? log.channel_name : '••••'
+          const channelBadgeLabel = log.channel_name || channelIdDisplay
+          const channelRatio = other?.channel_ratio
           const multiKeyIndex = other?.admin_info?.multi_key_index
           const showMultiKeyIndex =
             other?.admin_info?.is_multi_key === true &&
@@ -368,9 +369,9 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                 >
                   <div className='relative inline-flex w-fit items-center gap-1'>
                     <StatusBadge
-                      label={channelIdDisplay}
-                      autoColor={String(log.channel)}
-                      copyText={String(log.channel)}
+                      label={channelBadgeLabel}
+                      autoColor={channelBadgeLabel}
+                      copyText={channelDisplay}
                       size='sm'
                       showDot={false}
                       className='font-mono'
@@ -439,17 +440,19 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                       </button>
                     )}
                   </div>
-                  {log.channel_name && (
-                    <span className='text-muted-foreground/70 truncate [font-family:var(--font-body)] !text-xs'>
-                      {channelName}
-                    </span>
-                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className='space-y-1'>
                     <p>
                       {sensitiveVisible ? channelDisplay : channelIdDisplay}
                     </p>
+                    {typeof channelRatio === 'number' &&
+                      channelRatio !== 1 &&
+                      channelRatio > 0 && (
+                        <p className='text-muted-foreground text-xs'>
+                          {t('Channel Ratio')}: {channelRatio}x
+                        </p>
+                      )}
                     {channelChain && (
                       <p className='text-muted-foreground text-xs'>
                         {t('Chain')}: {channelChain}
