@@ -1,0 +1,21 @@
+scripts/catfk-stock-sync.py
+  s_1ef17be0879d18::t_09e26ab9a53b54 85-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "25b25a70285692c41242deb7307e0414104d84db",
+  "prompts": {},
+  "sessions": {
+    "s_1ef17be0879d18": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1ef17be0879d18",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
