@@ -1,0 +1,23 @@
+web/src/features/usage-logs/components/columns/common-logs-columns.tsx
+  s_9e435902dfcb0e::t_929c99ef256505 354-355,372-374,449-455
+web/src/features/usage-logs/components/dialogs/details-dialog.tsx
+  s_9e435902dfcb0e::t_b8393f5a76a55c 677-687
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "af99e34c9b1a08bfd5fb66b29c6444452e9d43f7",
+  "prompts": {},
+  "sessions": {
+    "s_9e435902dfcb0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_9e435902dfcb0e",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
