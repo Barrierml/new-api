@@ -83,14 +83,6 @@ function countBy(
   return models.reduce((count, model) => count + (predicate(model) ? 1 : 0), 0)
 }
 
-function formatGroupRatio(ratio: number | undefined): string | undefined {
-  if (ratio == null) return undefined
-  const formatted = Number.isInteger(ratio)
-    ? ratio.toString()
-    : ratio.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')
-  return `x${formatted}`
-}
-
 function FilterChip(props: {
   option: FilterOption
   active: boolean
@@ -180,18 +172,6 @@ export function PricingSidebar(props: PricingSidebarProps) {
       .filter((vendor) => vendor.count > 0),
   ]
 
-  const groupOptions: FilterOption[] = [
-    {
-      value: FILTER_ALL,
-      label: t('All Groups'),
-    },
-    ...props.groups.map((group) => ({
-      value: group,
-      label: group,
-      suffix: formatGroupRatio(props.groupRatios?.[group]),
-    })),
-  ]
-
   const quotaOptions: FilterOption[] = [
     {
       value: QUOTA_TYPES.ALL,
@@ -274,12 +254,7 @@ export function PricingSidebar(props: PricingSidebarProps) {
       )}
 
       <div className='space-y-1'>
-        <FilterSection
-          title={t('Groups')}
-          value={props.groupFilter}
-          options={groupOptions}
-          onChange={props.onGroupChange}
-        />
+        {/* Group filter hidden: pricing is channel-based; all user groups share the same ratio. */}
         <FilterSection
           title={t('All Vendors')}
           value={props.vendorFilter}

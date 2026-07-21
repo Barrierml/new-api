@@ -68,7 +68,12 @@ import {
 } from '../lib/dynamic-price'
 import { parseTags } from '../lib/filters'
 import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
-import { formatFixedPrice, formatGroupPrice } from '../lib/price'
+import {
+  formatChannelFixedPrice,
+  formatChannelPrice,
+  formatFixedPrice,
+  formatGroupPrice,
+} from '../lib/price'
 import type {
   ModelCapability,
   PriceType,
@@ -1021,87 +1026,97 @@ function GroupPricingSection(props: {
     )
   }
 
-  const renderGroupPrice = (group: string, type: PriceType) =>
-    formatGroupPrice(
+  const channels = props.model.channels || []
+
+  const renderChannelPrice = (channelRatio: number, type: PriceType) =>
+    formatChannelPrice(
       props.model,
-      group,
+      channelRatio,
       type,
       props.tokenUnit,
       showRechargePrice,
       props.priceRate,
-      props.usdExchangeRate,
-      props.groupRatio
-    )
-  const renderFixedGroupPrice = (group: string) =>
-    formatFixedPrice(
-      props.model,
-      group,
-      showRechargePrice,
-      props.priceRate,
-      props.usdExchangeRate,
-      props.groupRatio
+      props.usdExchangeRate
     )
 
   return (
     <section>
-      <SectionTitle>{t('Pricing by Group')}</SectionTitle>
+      <SectionTitle>{t('Pricing by Channel')}</SectionTitle>
       <AutoGroupChain model={props.model} autoGroups={props.autoGroups} />
-      <StaticDataTable
-        className='-mx-4 rounded-none border-0 sm:mx-0'
-        tableClassName='text-sm'
-        headerRowClassName='hover:bg-transparent'
-        data={availableGroups}
-        getRowKey={(group) => group}
-        columns={[
-          {
-            id: 'group',
-            header: t('Group'),
-            className: thClass,
-            cellClassName: 'py-2.5',
-            cell: (group) => <GroupBadge group={group} size='sm' />,
-          },
-          {
-            id: 'ratio',
-            header: t('Ratio'),
-            className: thClass,
-            cellClassName: 'text-muted-foreground py-2.5 font-mono',
-            cell: (group) => `${props.groupRatio[group] || 1}x`,
-          },
-          ...(isTokenBased
-            ? [
-                {
-                  id: 'input',
-                  header: t('Input'),
-                  className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-mono',
-                  cell: (group: string) => renderGroupPrice(group, 'input'),
-                },
-                {
-                  id: 'output',
-                  header: t('Output'),
-                  className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-mono',
-                  cell: (group: string) => renderGroupPrice(group, 'output'),
-                },
-                ...extraPriceTypes.map((ep) => ({
-                  id: ep.type,
-                  header: ep.label,
-                  className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-mono',
-                  cell: (group: string) => renderGroupPrice(group, ep.type),
-                })),
-              ]
-            : [
-                {
-                  id: 'price',
-                  header: t('Price'),
-                  className: `${thClass} text-right`,
-                  cellClassName: 'py-2.5 text-right font-mono',
-                  cell: renderFixedGroupPrice,
-                },
-              ]),
-        ]}
-      />
+      {channels.length === 0 ? (
+        <p className='text-muted-foreground text-sm'>
+          {t('This model is not served by any channel.')}
+        </p>
+      ) : (
+        <StaticDataTable
+          className='-mx-4 rounded-none border-0 sm:mx-0'
+          tableClassName='text-sm'
+          headerRowClassName='hover:bg-transparent'
+          data={channels}
+          getRowKey={(ch) => String(ch.channel_id)}
+          columns={[
+            {
+              id: 'channel',
+              header: t('Channel'),
+              className: thClass,
+              cellClassName: 'py-2.5',
+              cell: (ch) => (
+                <span className='font-medium'>{ch.channel_name}</span>
+              ),
+            },
+            {
+              id: 'ratio',
+              header: t('Ratio'),
+              className: thClass,
+              cellClassName: 'text-muted-foreground py-2.5 font-mono',
+              cell: (ch) => `${ch.channel_ratio || 1}x`,
+            },
+            ...(isTokenBased
+              ? [
+                  {
+                    id: 'input',
+                    header: t('Input'),
+                    className: `${thClass} text-right`,
+                    cellClassName: 'py-2.5 text-right font-mono',
+                    cell: (ch: (typeof channels)[number]) =>
+                      renderChannelPrice(ch.channel_ratio, 'input'),
+                  },
+                  {
+                    id: 'output',
+                    header: t('Output'),
+                    className: `${thClass} text-right`,
+                    cellClassName: 'py-2.5 text-right font-mono',
+                    cell: (ch: (typeof channels)[number]) =>
+                      renderChannelPrice(ch.channel_ratio, 'output'),
+                  },
+                  ...extraPriceTypes.map((ep) => ({
+                    id: ep.type,
+                    header: ep.label,
+                    className: `${thClass} text-right`,
+                    cellClassName: 'py-2.5 text-right font-mono',
+                    cell: (ch: (typeof channels)[number]) =>
+                      renderChannelPrice(ch.channel_ratio, ep.type),
+                  })),
+                ]
+              : [
+                  {
+                    id: 'price',
+                    header: t('Price'),
+                    className: `${thClass} text-right`,
+                    cellClassName: 'py-2.5 text-right font-mono',
+                    cell: (ch: (typeof channels)[number]) =>
+                      formatChannelFixedPrice(
+                        props.model,
+                        ch.channel_ratio,
+                        showRechargePrice,
+                        props.priceRate,
+                        props.usdExchangeRate
+                      ),
+                  },
+                ]),
+          ]}
+        />
+      )}
       <div className='-mx-4 sm:mx-0'>
         {isTokenBased && (
           <p className='text-muted-foreground/40 mt-1.5 px-4 text-[10px] sm:px-0'>

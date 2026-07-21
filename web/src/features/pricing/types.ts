@@ -62,6 +62,11 @@ export type PricingModel = {
    */
   group_channel_ratio_min?: Record<string, number>
   /**
+   * Per-channel billing breakdown for this model (enabled channels only,
+   * cheapest first). Provided by the backend pricing API.
+   */
+  channels?: PricingChannel[]
+  /**
    * Maximum channel ratio per group. Only present when channels in the same
    * group carry different ratios (i.e. a price range exists).
    */
@@ -119,3 +124,10 @@ export type PriceType =
   | 'audio_input'
   | 'audio_output'
 export type QuotaType = 0 | 1 // 0: token-based, 1: per-request
+
+/** Public per-channel billing view of a model (backend pricing API). */
+export type PricingChannel = {
+  channel_id: number
+  channel_name: string
+  channel_ratio: number
+}

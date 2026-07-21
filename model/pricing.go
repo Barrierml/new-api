@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"sync"
@@ -42,6 +43,17 @@ type Pricing struct {
 	// GroupChannelRatioMax holds the maximum channel ratio per group.
 	// Omitted when equal to GroupChannelRatioMin (no range to show).
 	GroupChannelRatioMax map[string]float64 `json:"group_channel_ratio_max,omitempty"`
+	// Channels lists every enabled channel serving this model with its billing
+	// ratio, sorted by ratio ascending (cheapest first). Only safe public
+	// fields are exposed (id, name, ratio) — never keys or upstream URLs.
+	Channels []PricingChannel `json:"channels,omitempty"`
+}
+
+// PricingChannel is the public per-channel billing view of a model.
+type PricingChannel struct {
+	ChannelId    int     `json:"channel_id"`
+	ChannelName  string  `json:"channel_name"`
+	ChannelRatio float64 `json:"channel_ratio"`
 }
 
 type PricingVendor struct {
@@ -273,6 +285,13 @@ func updatePricing() {
 	}
 	modelGroupChannelRatio := make(map[string]map[string]*minMaxRatio)
 
+	// modelChannels[model][channelId] = {name, ratio} for the public channel breakdown
+	type channelInfo struct {
+		name  string
+		ratio float64
+	}
+	modelChannels := make(map[string]map[int]channelInfo)
+
 	for _, ability := range enableAbilities {
 		groups, ok := modelGroupsMap[ability.Model]
 		if !ok {
@@ -288,6 +307,12 @@ func updatePricing() {
 		cr := ability.ChannelRatio
 		if cr <= 0 {
 			cr = 1.0
+		}
+		if _, ok := modelChannels[ability.Model]; !ok {
+			modelChannels[ability.Model] = make(map[int]channelInfo)
+		}
+		if _, exists := modelChannels[ability.Model][ability.ChannelId]; !exists {
+			modelChannels[ability.Model][ability.ChannelId] = channelInfo{name: ability.ChannelName, ratio: cr}
 		}
 		if mm, exists := modelGroupChannelRatio[ability.Model][ability.Group]; exists {
 			if cr < mm.min {
@@ -465,6 +490,21 @@ func updatePricing() {
 					pricing.GroupChannelRatioMax = maxMap
 				}
 			}
+		}
+
+		// attach the public per-channel breakdown, cheapest first
+		if chans, ok := modelChannels[model]; ok && len(chans) > 0 {
+			list := make([]PricingChannel, 0, len(chans))
+			for id, info := range chans {
+				list = append(list, PricingChannel{ChannelId: id, ChannelName: info.name, ChannelRatio: info.ratio})
+			}
+			sort.Slice(list, func(i, j int) bool {
+				if list[i].ChannelRatio != list[j].ChannelRatio {
+					return list[i].ChannelRatio < list[j].ChannelRatio
+				}
+				return list[i].ChannelName < list[j].ChannelName
+			})
+			pricing.Channels = list
 		}
 
 		pricingMap = append(pricingMap, pricing)

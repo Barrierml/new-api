@@ -208,6 +208,73 @@ export function formatGroupPrice(
 }
 
 /**
+ * Format price for a specific channel (token-based).
+ * Same computation as formatGroupPrice but takes an explicit billing ratio
+ * (the channel ratio) instead of looking up a user group.
+ */
+export function formatChannelPrice(
+  model: PricingModel,
+  channelRatio: number,
+  type: PriceType,
+  tokenUnit: TokenUnit,
+  showWithRecharge = false,
+  priceRate = 1,
+  usdExchangeRate = 1
+): string {
+  if (model.quota_type === QUOTA_TYPE_VALUES.REQUEST) {
+    return '-'
+  }
+
+  const ratio = channelRatio > 0 ? channelRatio : 1
+  let priceInUSD = calculateTokenPrice(model, type, ratio)
+
+  priceInUSD = applyRechargeRate(
+    priceInUSD,
+    showWithRecharge,
+    priceRate,
+    usdExchangeRate
+  )
+
+  const price = priceInUSD / TOKEN_UNIT_DIVISORS[tokenUnit]
+  return formatCurrencyFromUSD(price, {
+    digitsLarge: 4,
+    digitsSmall: 6,
+    abbreviate: false,
+  })
+}
+
+/**
+ * Format fixed price for pay-per-request models with an explicit channel ratio.
+ */
+export function formatChannelFixedPrice(
+  model: PricingModel,
+  channelRatio: number,
+  showWithRecharge = false,
+  priceRate = 1,
+  usdExchangeRate = 1
+): string {
+  if (model.quota_type !== QUOTA_TYPE_VALUES.REQUEST) {
+    return '-'
+  }
+
+  const ratio = channelRatio > 0 ? channelRatio : 1
+  let priceInUSD = (model.model_price || 0) * ratio
+
+  priceInUSD = applyRechargeRate(
+    priceInUSD,
+    showWithRecharge,
+    priceRate,
+    usdExchangeRate
+  )
+
+  return formatCurrencyFromUSD(priceInUSD, {
+    digitsLarge: 4,
+    digitsSmall: 6,
+    abbreviate: false,
+  })
+}
+
+/**
  * Format fixed price for pay-per-request models (with specific group)
  */
 export function formatFixedPrice(
