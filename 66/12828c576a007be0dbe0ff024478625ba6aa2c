@@ -1,0 +1,23 @@
+controller/user.go
+  s_f2d250dfcd66e1::t_ded8a08e1b248d 1393,1400-1406,1410
+relay/helper/stream_scanner.go
+  s_f2d250dfcd66e1::t_45f68cad810c47 83-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6612828c576a007be0dbe0ff024478625ba6aa2c",
+  "prompts": {},
+  "sessions": {
+    "s_f2d250dfcd66e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_f2d250dfcd66e1",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
