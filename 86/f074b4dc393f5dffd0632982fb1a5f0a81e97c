@@ -1,0 +1,63 @@
+controller/audit.go
+  s_46b1eb16d5b316::t_55d4d9058c9d36 50-54
+controller/channel_authz.go
+  s_46b1eb16d5b316::t_9f9c832444c700 122
+controller/subscription.go
+  s_46b1eb16d5b316::t_3c63e312479bd0 352-355,368-369,374,399-408,433-493,510-511,516
+model/db_time.go
+  s_46b1eb16d5b316::t_19117f1e1408a2 3-6,11-18,23,25,27
+model/subscription.go
+  s_46b1eb16d5b316::t_71beea86d1bea7 484-505,515-522,533,535-543,554-556,563-567,641,742-817,819,823,825-829,831-865,867-872,876-880,882-938,940,1001
+model/subscription_admin_grant_test.go
+  s_46b1eb16d5b316::t_060cf0703c3063 1-403
+model/subscription_auth_test.go
+  s_46b1eb16d5b316::t_90984b18070b18 55,139
+router/api-router.go
+  s_46b1eb16d5b316::t_05317425aed7da 176
+web/src/features/subscriptions/api.ts
+  s_46b1eb16d5b316::t_4c2f6d507b7964 27-28,95-101
+web/src/features/subscriptions/components/dialogs/batch-assign-subscription-dialog.tsx
+  s_46b1eb16d5b316::t_1168cbc4ebbfb7 1-285
+web/src/features/subscriptions/components/dialogs/user-subscriptions-dialog.tsx
+  s_46b1eb16d5b316::t_ad1ff7055b18a5 29,60,70-74,76-80,131-132,144-145,174-175,189-190,195,268-275,277-376
+web/src/features/subscriptions/constants.ts
+  s_46b1eb16d5b316::t_087473535325bb 21-22,43-92
+web/src/features/subscriptions/types.ts
+  s_46b1eb16d5b316::t_9b876406960dec 116-117,120-142
+web/src/features/usage-logs/lib/format.ts
+  s_46b1eb16d5b316::t_419a36dd84100d 387-392
+web/src/features/users/components/data-table-bulk-actions.tsx
+  s_46b1eb16d5b316::t_32211520916f5b 20-22,25-26,35-39,41-66
+web/src/i18n/locales/en.json
+  s_46b1eb16d5b316::t_02d97d8547296b 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/fr.json
+  s_46b1eb16d5b316::t_15439e886a3512 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/ja.json
+  s_46b1eb16d5b316::t_3bad0883abfbe0 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/ru.json
+  s_46b1eb16d5b316::t_d82e26f4867ef8 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/vi.json
+  s_46b1eb16d5b316::t_5d1e81828bafd8 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/zh-TW.json
+  s_46b1eb16d5b316::t_4b84788cb532c7 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+web/src/i18n/locales/zh.json
+  s_46b1eb16d5b316::t_728671815d3c3d 3,233,238,345,458,590,1218,2137-2138,2296,2359,2466,2473,2839,3367,3761,4342,4350,4943
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "86f074b4dc393f5dffd0632982fb1a5f0a81e97c",
+  "prompts": {},
+  "sessions": {
+    "s_46b1eb16d5b316": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_46b1eb16d5b316",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
