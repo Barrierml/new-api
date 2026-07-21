@@ -1,0 +1,33 @@
+model/ability.go
+  s_316d73a45d6c4c::t_ece8a08292f042 31,39,41
+model/pricing.go
+  s_316d73a45d6c4c::t_efa5d9fec3d95f 5,46-56,288-294,311-316,495-509
+web/src/features/pricing/components/model-card.tsx
+  s_316d73a45d6c4c::t_d27d19a34e754a 60,82-83,86,252,254
+web/src/features/pricing/components/model-details.tsx
+  s_316d73a45d6c4c::t_166eb82b72898a 71-76,1029-1032,1034,1039,1044,1046-1119
+web/src/features/pricing/components/pricing-sidebar.tsx
+  s_316d73a45d6c4c::t_ffc58d28b88e82 257
+web/src/features/pricing/lib/price.ts
+  s_316d73a45d6c4c::t_a7152ab1a4ec6b 210-276
+web/src/features/pricing/types.ts
+  s_316d73a45d6c4c::t_0db54bbb62b0fb 64-68,127-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "130bb5ea094003509f14abaf0661e5171d8b59fe",
+  "prompts": {},
+  "sessions": {
+    "s_316d73a45d6c4c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_316d73a45d6c4c",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
