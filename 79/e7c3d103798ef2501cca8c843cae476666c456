@@ -1,0 +1,25 @@
+web/src/features/subscriptions/lib/catfk-plans.ts
+  s_c076e0670f70a1::t_bc2b14a5b5389c 1-39
+web/src/features/wallet/components/recharge-form-card.tsx
+  s_c076e0670f70a1::t_09ffebb41de90c 23-26,550-565
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_c076e0670f70a1::t_26b4b23dad3861 54,613-626,649-655
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "79e7c3d103798ef2501cca8c843cae476666c456",
+  "prompts": {},
+  "sessions": {
+    "s_c076e0670f70a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c076e0670f70a1",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
