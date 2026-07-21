@@ -55,6 +55,7 @@ import { runCatfkCheckout } from '@/features/subscriptions/lib/catfk-checkout'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
   PlanRecord,
+  SubQuotaUsage,
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
 import { formatQuota } from '@/lib/format'
@@ -86,6 +87,39 @@ function getBillingPreferenceLabel(
     default:
       return preference
   }
+}
+
+function SubQuotaUsageList({ usages }: { usages: SubQuotaUsage[] }) {
+  const { t } = useTranslation()
+  return (
+    <div className='mt-2 space-y-2'>
+      <div className='text-xs font-medium'>{t('Sub Quota Limits')}</div>
+      {usages.map((u) => {
+        const usagePct = Math.min(100, Math.round(u.percent || 0))
+        const key = `${u.name || 'sub'}-${u.window_start || 0}-${u.window_end || 0}`
+        return (
+          <div key={key} className='rounded-md border p-2'>
+            <div className='flex items-center justify-between text-xs'>
+              <span className='font-medium'>{u.name || t('Sub Limit')}</span>
+              {u.exceeded && (
+                <span className='text-destructive font-medium'>
+                  {t('Exceeded')}
+                </span>
+              )}
+            </div>
+            <div className='text-muted-foreground mt-1 text-xs'>
+              {t('Used')} ${(u.used_usd || 0).toFixed(2)} / $
+              {(u.limit_usd || 0).toFixed(2)} · {t('Remaining')} $
+              {(u.remaining_usd || 0).toFixed(2)} ({usagePct}%)
+              {u.reset_time > 0 &&
+                ` · ${t('Next reset')}: ${new Date(u.reset_time * 1000).toLocaleString()}`}
+            </div>
+            <Progress value={usagePct} className='mt-1.5 h-1' />
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function SubscriptionPlansCard({
@@ -523,6 +557,11 @@ export function SubscriptionPlansCard({
                       {totalAmount > 0 && isActive && (
                         <Progress value={usagePercent} className='mt-2 h-1.5' />
                       )}
+                      {isActive &&
+                        sub?.sub_quota_usage &&
+                        sub.sub_quota_usage.length > 0 && (
+                          <SubQuotaUsageList usages={sub.sub_quota_usage} />
+                        )}
                     </div>
                   )
                 })}

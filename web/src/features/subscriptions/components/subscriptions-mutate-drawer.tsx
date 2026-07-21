@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CalendarClock, CreditCard, RefreshCw, Settings2 } from 'lucide-react'
+import { CalendarClock, CreditCard, Gauge, RefreshCw, Settings2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -79,6 +79,7 @@ import {
   type PlanFormValues,
 } from '../lib'
 import type { PlanRecord } from '../types'
+import { SubQuotaLimitsField } from './sub-quota-limits-field'
 import { useSubscriptions } from './subscriptions-provider'
 
 interface Props {
@@ -743,6 +744,26 @@ export function SubscriptionsMutateDrawer({
                   )}
                 />
               </div>
+            </SideDrawerSection>
+
+            {/* Sub Quota Limits */}
+            <SideDrawerSection>
+              <h3 className='flex items-center gap-2 text-sm font-medium'>
+                <IconBadge tone='info' size='xs'>
+                  <Gauge />
+                </IconBadge>
+                {t('Sub Quota Limits')}
+              </h3>
+              <FormField
+                control={form.control}
+                name='sub_quota_limits'
+                render={() => (
+                  <FormItem>
+                    <SubQuotaLimitsField />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </SideDrawerSection>
 
             {/* Payment Config */}
