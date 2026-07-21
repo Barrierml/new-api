@@ -119,6 +119,7 @@ func clearChannelReadOnlyFields(channel *PatchChannel, requestData map[string]an
 // TestChannelFieldsAreClassified guard test enforces this.
 var channelNonSensitiveFields = map[string]struct{}{
 	"retry_attempts":      {},
+	"ratio":               {},
 	"id":                  {},
 	"test_model":          {},
 	"name":                {},

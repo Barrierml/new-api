@@ -52,7 +52,7 @@ func TestSubscriptionGroupTransitionsPreserveAuthVersionAndSessions(t *testing.T
 	}
 	require.NoError(t, DB.Create(plan).Error)
 
-	subscription, err := CreateUserSubscriptionFromPlanTx(DB, user.Id, plan, "test")
+	subscription, err := CreateUserSubscriptionFromPlanTx(DB, user.Id, plan, "test", 0)
 	require.NoError(t, err)
 	require.Equal(t, "default", subscription.PrevUserGroup)
 	require.NoError(t, RefreshUserGroupCache(user.Id))
@@ -136,7 +136,7 @@ func TestSubscriptionGroupCacheRefreshFailureDoesNotChangeCommittedResult(t *tes
 		common.RedisEnabled, common.RDB = oldRedisEnabled, oldRDB
 	})
 
-	message, err := AdminBindSubscription(user.Id, plan.Id, "test")
+	message, _, err := AdminBindSubscription(user.Id, plan.Id, AdminGrantOptions{})
 	require.NoError(t, err)
 	assert.Contains(t, message, "pro")
 
