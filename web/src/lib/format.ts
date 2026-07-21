@@ -281,3 +281,9 @@ export function stringToColor(str: string): string {
 
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`
 }
+
+/** 套餐价格展示:CNY 用 ¥,其它默认 $。 */
+export function formatPlanPrice(amount: number, currency?: string): string {
+  const symbol = (currency || '').toUpperCase() === 'CNY' ? '¥' : '$'
+  return `${symbol}${(Number(amount) || 0).toFixed(2)}`
+}

@@ -134,6 +134,17 @@ func AdminListSubscriptionPlans(c *gin.Context) {
 	common.ApiSuccess(c, result)
 }
 
+// normalizePlanCurrency validates the plan currency allowlist; empty defaults to USD.
+func normalizePlanCurrency(currency string) (string, bool) {
+	switch strings.ToUpper(strings.TrimSpace(currency)) {
+	case "", "USD":
+		return "USD", true
+	case "CNY":
+		return "CNY", true
+	}
+	return "", false
+}
+
 type AdminUpsertSubscriptionPlanRequest struct {
 	Plan model.SubscriptionPlan `json:"plan"`
 }
@@ -161,10 +172,12 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorMsg(c, "价格不能超过9999")
 		return
 	}
-	if req.Plan.Currency == "" {
-		req.Plan.Currency = "USD"
+	if cur, ok := normalizePlanCurrency(req.Plan.Currency); ok {
+		req.Plan.Currency = cur
+	} else {
+		common.ApiErrorMsg(c, "不支持的货币类型")
+		return
 	}
-	req.Plan.Currency = "USD"
 	if req.Plan.AllowBalancePay == nil {
 		req.Plan.AllowBalancePay = common.GetPointer(true)
 	}
@@ -247,10 +260,12 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 	req.Plan.Id = id
-	if req.Plan.Currency == "" {
-		req.Plan.Currency = "USD"
+	if cur, ok := normalizePlanCurrency(req.Plan.Currency); ok {
+		req.Plan.Currency = cur
+	} else {
+		common.ApiErrorMsg(c, "不支持的货币类型")
+		return
 	}
-	req.Plan.Currency = "USD"
 	if req.Plan.DurationUnit == "" {
 		req.Plan.DurationUnit = model.SubscriptionDurationMonth
 	}
