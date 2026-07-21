@@ -1,0 +1,57 @@
+controller/subscription.go
+  s_b16d3491bc3646::t_81a981c8db567c 207-213,287-291,293,314
+main.go
+  s_b16d3491bc3646::t_bb0f3fabe70d21 329-336
+model/subscription.go
+  s_b16d3491bc3646::t_f22b4f8d4e50ea 188-190,282-290,309-311,604,1065-1066,1079,1116-1118,1123,1131-1145,1162-1190,1291-1299,1568-1569,1636-1641
+model/subscription_sub_quota.go
+  s_b16d3491bc3646::t_a14da2e600a0d4 1-528
+web/bun.lock
+  s_b16d3491bc3646::t_8bc6eb06b0f52d 3
+web/src/features/subscriptions/components/dialogs/user-subscriptions-dialog.tsx
+  s_b16d3491bc3646::t_daa4edf7ccb8b8 78,90-116,470-485
+web/src/features/subscriptions/components/sub-quota-limits-field.tsx
+  s_b16d3491bc3646::t_8cad882059bfe5 1-272
+web/src/features/subscriptions/components/subscriptions-mutate-drawer.tsx
+  s_b16d3491bc3646::t_7f9062768c0515 20,82,749-768
+web/src/features/subscriptions/constants.ts
+  s_b16d3491bc3646::t_25c300a9220d41 19,93-107,115-128
+web/src/features/subscriptions/lib/plan-form.ts
+  s_b16d3491bc3646::t_692ec47d20e8ea 24,27-47,49-50,77,103-142,166,188
+web/src/features/subscriptions/types.ts
+  s_b16d3491bc3646::t_c1485431511db4 47-48,53-96,116,123-124
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_b16d3491bc3646::t_14c5540a0985e8 58,92-124,560-564
+web/src/i18n/locales/en.json
+  s_b16d3491bc3646::t_fb25df89711cda 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/fr.json
+  s_b16d3491bc3646::t_d0dd0140d0de37 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/ja.json
+  s_b16d3491bc3646::t_ef4ca4f4013365 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/ru.json
+  s_b16d3491bc3646::t_3baf78b59ebe3a 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/vi.json
+  s_b16d3491bc3646::t_6e19a81e712184 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/zh-TW.json
+  s_b16d3491bc3646::t_f938cf9c755100 212,362,709,1746,2495-2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+web/src/i18n/locales/zh.json
+  s_b16d3491bc3646::t_9108f99441846c 212,362,709,1746,2495,2497,2812,2825,3003,3358-3359,3760,4339-4340,4361,4842,5168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "568dab3254607ace311350781757c973769aad6b",
+  "prompts": {},
+  "sessions": {
+    "s_b16d3491bc3646": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b16d3491bc3646",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
