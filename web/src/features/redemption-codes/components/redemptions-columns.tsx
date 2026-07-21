@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { type ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 
+import { DataTableColumnHeader } from '@/components/data-table'
 import { MaskedValueDisplay } from '@/components/masked-value-display'
 import { StatusBadge } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
@@ -156,8 +157,24 @@ export function useRedemptionsColumns(): ColumnDef<Redemption>[] {
     },
     {
       accessorKey: 'quota',
-      header: t('Quota'),
+      meta: { label: t('Benefit') },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Benefit')} />
+      ),
       cell: ({ row }) => {
+        const redemption = row.original
+        if (redemption.redemption_type === 'subscription') {
+          return (
+            <StatusBadge
+              label={
+                redemption.subscription_plan_title ||
+                `${t('Subscription Plan')} #${redemption.subscription_plan_id}`
+              }
+              variant='neutral'
+              copyable={false}
+            />
+          )
+        }
         const quota = row.getValue('quota') as number
         return (
           <StatusBadge
