@@ -1,0 +1,21 @@
+scripts/.gitignore
+  s_ab60af48f3d36c::t_b36c4e50588115 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "017f20266743bde478efeb518980416ddf074b9f",
+  "prompts": {},
+  "sessions": {
+    "s_ab60af48f3d36c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_ab60af48f3d36c",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
