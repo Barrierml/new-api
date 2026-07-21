@@ -1,0 +1,33 @@
+scripts/catfk-checkout-orders.json
+  s_62e5e0fbda356e::t_fdceedf5db80b9 1-37
+scripts/catfk-checkout.py
+  s_62e5e0fbda356e::t_3b101eceb63254 47,100,129-130,134-166,177-181,184,234,236
+web/src/features/subscriptions/lib/catfk-checkout.ts
+  s_62e5e0fbda356e::t_5f2d1c382bb547 1-78
+web/src/features/subscriptions/lib/catfk-plans.ts
+  s_62e5e0fbda356e::t_a5842dc25aa013 26-42
+web/src/features/wallet/components/recharge-form-card.tsx
+  s_62e5e0fbda356e::t_3b486d17cf0ef8 22,27-28,90,121,125-149,584-588,591-592
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_62e5e0fbda356e::t_25cd7e3fa3fb6a 54,62,64,109-110,157-186,632-633,635-637,640-649
+web/src/features/wallet/index.tsx
+  s_62e5e0fbda356e::t_dd568caa3b4c27 319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "01bff06e91d940f06bcad5b5441feb05cf5bdcc8",
+  "prompts": {},
+  "sessions": {
+    "s_62e5e0fbda356e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_62e5e0fbda356e",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
