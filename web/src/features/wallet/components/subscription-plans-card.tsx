@@ -51,6 +51,7 @@ import {
   updateBillingPreference,
 } from '@/features/subscriptions/api'
 import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/dialogs/subscription-purchase-dialog'
+import { catfkLinkForPrice } from '@/features/subscriptions/lib/catfk-plans'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
   PlanRecord,
@@ -609,6 +610,20 @@ export function SubscriptionPlansCard({
                           {t('Purchase limit reached')} ({count}/{limit})
                         </TooltipContent>
                       </Tooltip>
+                    ) : catfkLinkForPrice(Number(plan.price_amount || 0)) ? (
+                      <Button
+                        variant='outline'
+                        className='w-full'
+                        onClick={() =>
+                          window.open(
+                            catfkLinkForPrice(Number(plan.price_amount || 0)),
+                            '_blank',
+                            'noopener,noreferrer'
+                          )
+                        }
+                      >
+                        {t('Buy on CatFK')}
+                      </Button>
                     ) : (
                       <Button
                         variant='outline'
@@ -629,6 +644,13 @@ export function SubscriptionPlansCard({
         ) : (
           <p className='text-muted-foreground py-4 text-center text-sm'>
             {t('No plans available')}
+          </p>
+        )}
+        {plans.length > 0 && (
+          <p className='text-muted-foreground mt-3 text-xs'>
+            {t(
+              'Purchase flow: pay on CatFK, receive a redemption code via your contact, then redeem it in Wallet → Redeem Code.'
+            )}
           </p>
         )}
       </TitledCard>

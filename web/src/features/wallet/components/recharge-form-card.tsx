@@ -20,6 +20,10 @@ import { Gift, ExternalLink, Loader2, Receipt, WalletCards } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  CATFK_TOPUP_LINK_BY_PRICE,
+  CATFK_TOPUP_PRICES,
+} from '@/features/subscriptions/lib/catfk-plans'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -543,6 +547,22 @@ export function RechargeFormCard({
               </a>
             </p>
           )}
+          <p className='text-muted-foreground text-xs'>
+            {t('Buy a code on CatFK')}:{' '}
+            {CATFK_TOPUP_PRICES.map((price, i) => (
+              <span key={price}>
+                {i > 0 && ' · '}
+                <a
+                  href={CATFK_TOPUP_LINK_BY_PRICE[price]}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='underline-offset-4 hover:underline'
+                >
+                  ¥{price}
+                </a>
+              </span>
+            ))}
+          </p>
         </div>
       ) : (
         <Alert className='border-t'>
