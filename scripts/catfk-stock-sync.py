@@ -82,10 +82,9 @@ def goods_id_map():
 
 def stock_available(goods_id):
     r = catfk("stock", "list", str(goods_id))
-    items = r.get("data") or []
-    if isinstance(items, dict):
-        items = items.get("items", [])
-    return sum(1 for c in items if str(c.get("status")) in ("1", "available", "unsold"))
+    items = r.get("list") or r.get("data") or []
+    # catfk card status: 0 = available(unsold), 1 = sold
+    return sum(1 for c in items if c.get("status") == 0)
 
 
 def create_codes(kind, value, count):
