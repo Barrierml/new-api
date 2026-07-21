@@ -116,10 +116,12 @@ def extract(env):
                        WHERE s.status='active' AND p.type='subscription'
                          AND (s.expires_at IS NULL OR s.expires_at > now())""")
         data["subscriptions"] = cur.fetchall()
-        cur.execute("""SELECT code, type, topup_amount,
-                              EXTRACT(EPOCH FROM expires_at)::bigint,
-                              EXTRACT(EPOCH FROM created_at)::bigint
-                       FROM par_redeem_codes WHERE uses_count < max_uses""")
+        cur.execute("""SELECT c.code, c.type, c.topup_amount,
+                              EXTRACT(EPOCH FROM c.expires_at)::bigint,
+                              EXTRACT(EPOCH FROM c.created_at)::bigint,
+                              p.name
+                       FROM par_redeem_codes c LEFT JOIN par_plans p ON p.id = c.plan_id
+                       WHERE c.uses_count < c.max_uses""")
         data["codes"] = cur.fetchall()
         cur.execute("""SELECT id, input_price, output_price, cache_creation_price,
                               cache_read_price, COALESCE(multiplier, 1)
@@ -304,23 +306,33 @@ def phase_pricing(data, dry):
 
 
 def phase_redemptions(data, dry):
-    rows, plan_codes = [], []
-    now_ts = int(datetime.now(timezone.utc).timestamp())
-    for code, ctype, amount, expires_ts, created_ts in data["codes"]:
+    plan_ids = {}
+    for row in local_query("SELECT id, title FROM subscription_plans"):
+        pid, title = row.split("|")
+        plan_ids[title] = int(pid)
+    rows, plan_skipped = [], []
+    for code, ctype, amount, expires_ts, created_ts, plan_name in data["codes"]:
         if ctype == "topup":
             quota = int((Decimal(str(amount)) * QUOTA_PER_USD).quantize(
                 Decimal("1"), rounding=ROUND_HALF_UP))
-            rows.append(f"({lit(code)},'par-migration',{quota},1,{created_ts},{expires_ts or 0},1,0)")
+            rows.append(f"({lit(code)},'par-migration',{quota},1,{created_ts},{expires_ts or 0},1,0,'quota',0)")
         else:
-            plan_codes.append({"code": code, "expires_at": expires_ts, "created_at": created_ts})
+            pid = plan_ids.get(plan_name)
+            if not pid:
+                plan_skipped.append(code)
+                continue
+            rows.append(f"({lit(code)},'par-migration',0,1,{created_ts},{expires_ts or 0},1,0,'subscription',{pid})")
     sql = ""
     for i in range(0, len(rows), 50):
         batch = ",\n".join(rows[i:i+50])
         sql += ("INSERT INTO redemptions (key,name,quota,status,created_time,expired_time,"
-                "user_id,used_user_id) VALUES\n" + batch + "\nON CONFLICT (key) DO NOTHING;\n")
+                "user_id,used_user_id,redemption_type,subscription_plan_id) VALUES\n" + batch +
+                "\nON CONFLICT (key) DO NOTHING;\n")
     if not dry and sql:
         local_sql(sql)
-    return {"topup_inserted": len(rows), "plan_codes": plan_codes}
+    topup_n = sum(1 for c in data["codes"] if c[1] == "topup")
+    return {"topup_inserted": topup_n, "plan_inserted": len(rows) - topup_n,
+            "plan_skipped": plan_skipped}
 
 
 # ---------------------------------------------------------------- main
@@ -363,17 +375,12 @@ def main():
         if ph == "redemptions":
             full["redemptions"] = phase_redemptions(data, args.dry_run)
             print(f"redemptions: topup={full['redemptions']['topup_inserted']} "
-                  f"plan_codes={len(full['redemptions']['plan_codes'])}")
+                  f"plan={full['redemptions']['plan_inserted']} "
+                  f"skipped={full['redemptions']['plan_skipped']}")
 
-    # reports
-    with open("par_plan_codes.csv", "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["code", "expires_at", "created_at"])
-        for c in full.get("redemptions", {}).get("plan_codes", []):
-            w.writerow([c["code"], c["expires_at"], c["created_at"]])
     with open("migration_report.json", "w") as f:
         json.dump(full, f, default=str, ensure_ascii=False, indent=1)
-    print("wrote migration_report.json + par_plan_codes.csv")
+    print("wrote migration_report.json")
     if args.dry_run:
         print("DRY RUN — nothing written to DB")
 
