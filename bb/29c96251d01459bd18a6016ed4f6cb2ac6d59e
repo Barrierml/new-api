@@ -1,0 +1,65 @@
+constant/context_key.go
+  s_4061adebd5e795::t_4690faf79eb31b 42-47
+controller/channel.go
+  s_4061adebd5e795::t_2179cc04201507 534-537
+controller/channel_authz.go
+  s_4061adebd5e795::t_49ac7daf214c32 121
+controller/relay.go
+  s_4061adebd5e795::t_1745b53cea8309 237,296-300,313-325,341,352-354,586-588
+model/ability.go
+  s_4061adebd5e795::t_f37e8bd7e43506 65,68,70-74,98-107,109-111,113,118-120,127-137,139-142,146
+model/ability_retry_test.go
+  s_4061adebd5e795::t_703318b614f732 1-50
+model/channel.go
+  s_4061adebd5e795::t_6bbe6212238a7a 62-63,504-510
+model/channel_cache.go
+  s_4061adebd5e795::t_eb7074a24ca0c4 115-118,121,139-150
+service/channel_retry.go
+  s_4061adebd5e795::t_67e5f2999e0126 1-65
+service/channel_retry_test.go
+  s_4061adebd5e795::t_2f9a8b3ed190b1 1-60
+service/channel_select.go
+  s_4061adebd5e795::t_ee5e2743f34d53 15-21,120-123,142,147,161-165
+web/src/features/channels/components/drawers/channel-mutate-drawer.tsx
+  s_4061adebd5e795::t_1ee3fb3d730cc7 3753-3785
+web/src/features/channels/constants.ts
+  s_4061adebd5e795::t_dce9c3600b208c 281
+web/src/features/channels/lib/channel-form-errors.ts
+  s_4061adebd5e795::t_80f93b3ebeab00 32
+web/src/features/channels/lib/channel-form.ts
+  s_4061adebd5e795::t_b206c32fefd6a2 153,328,471,685,735
+web/src/features/channels/types.ts
+  s_4061adebd5e795::t_5199c80415c88d 61,355
+web/src/i18n/locales/en.json
+  s_4061adebd5e795::t_ab246ccbc7f616 743,2599
+web/src/i18n/locales/fr.json
+  s_4061adebd5e795::t_6b1e762ad8529e 743,2599
+web/src/i18n/locales/ja.json
+  s_4061adebd5e795::t_2e934d60d95eb8 743,2599
+web/src/i18n/locales/ru.json
+  s_4061adebd5e795::t_06f6d4e42b1de5 743,2599
+web/src/i18n/locales/vi.json
+  s_4061adebd5e795::t_7bca50dfb77999 743,2599
+web/src/i18n/locales/zh-TW.json
+  s_4061adebd5e795::t_0f654e28f62313 743,2599
+web/src/i18n/locales/zh.json
+  s_4061adebd5e795::t_8999472cad13e6 743,2599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bb29c96251d01459bd18a6016ed4f6cb2ac6d59e",
+  "prompts": {},
+  "sessions": {
+    "s_4061adebd5e795": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_4061adebd5e795",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
