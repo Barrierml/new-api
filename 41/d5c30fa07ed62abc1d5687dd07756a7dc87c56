@@ -1,0 +1,23 @@
+scripts/migrate-par-to-newapi.py
+  s_77fa16f97420ae::t_27a7163e0cae6f 119-124,309-314,318,320-324,329-330,333-335,378-380,383
+scripts/migration_report.json
+  s_77fa16f97420ae::t_5b15836622f9e5 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "41d5c30fa07ed62abc1d5687dd07756a7dc87c56",
+  "prompts": {},
+  "sessions": {
+    "s_77fa16f97420ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_77fa16f97420ae",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
