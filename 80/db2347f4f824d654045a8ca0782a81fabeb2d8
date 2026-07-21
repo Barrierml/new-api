@@ -1,0 +1,85 @@
+constant/context_key.go
+  s_b560cdb43135e9::t_1ba3ead66829f9 24
+controller/relay.go
+  s_b560cdb43135e9::t_7b87b386dc2ecc 590
+docs/superpowers/specs/2026-07-20-par-plan-compatibility-design.md
+  s_b560cdb43135e9::t_19cfe906265040 1-199
+middleware/distributor.go
+  s_b560cdb43135e9::t_3b27692648cc3b 504
+model/ability.go
+  s_b560cdb43135e9::t_d4eca8dcf217e3 30-32,38
+model/channel.go
+  s_b560cdb43135e9::t_cee08e3c88a62a 58-61,349-355
+model/pricing.go
+  s_b560cdb43135e9::t_63af4f61492d58 39-44,269-275,283-301,441-469
+model/task.go
+  s_b560cdb43135e9::t_af772cabf0d16b 115
+pkg/billingexpr/settle.go
+  s_b560cdb43135e9::t_a1c2e87447a9b6 28-32
+pkg/billingexpr/types.go
+  s_b560cdb43135e9::t_2c6dd2b6d0af8d 47
+relay/common/relay_info.go
+  s_b560cdb43135e9::t_9d7e8fbba8a516 81,241-246
+relay/helper/price.go
+  s_b560cdb43135e9::t_8aae71cc421cd5 8,44-51,86-87,90,130,167,182,201-202,231,244,263,283,310,330,345
+scripts/migrate-par-to-newapi.py
+  s_b560cdb43135e9::t_845d48ed99156a 1-382
+scripts/migration_report.json
+  s_b560cdb43135e9::t_9d743ab5241590 1-853
+scripts/par_plan_codes.csv
+  s_b560cdb43135e9::t_63f0feec813316 1-39
+service/log_info_generate.go
+  s_b560cdb43135e9::t_1224918c9e96cd 81-83,302-304
+service/quota.go
+  s_b560cdb43135e9::t_41ee06bfac9160 40,52-56,61,63,73-74,141-145,206-210,330-334
+service/task_billing.go
+  s_b560cdb43135e9::t_8f6b14b59f1143 50-52,138-140,313,315,318-322,325-326,328
+service/text_quota.go
+  s_b560cdb43135e9::t_cf44fae72fff8e 58-59,336-342,384-392,449-451
+types/price_data.go
+  s_b560cdb43135e9::t_4b789dac330067 29
+web/src/features/channels/components/drawers/channel-mutate-drawer.tsx
+  s_b560cdb43135e9::t_835ef7def5768e 3679-3706
+web/src/features/channels/lib/channel-form.ts
+  s_b560cdb43135e9::t_663297f7009f12 150,324,466,679,728
+web/src/features/channels/types.ts
+  s_b560cdb43135e9::t_07511a3a131466 46
+web/src/features/pricing/types.ts
+  s_b560cdb43135e9::t_6d221de110d37d 59-68
+web/src/features/usage-logs/types.ts
+  s_b560cdb43135e9::t_cc35245f7fac75 175,222
+web/src/i18n/locales/_reports/_sync-report.json
+  s_b560cdb43135e9::t_48081c942dac2b 2,6,12,18,24,30,36
+web/src/i18n/locales/en.json
+  s_b560cdb43135e9::t_69b72431ce241d 739,4701
+web/src/i18n/locales/fr.json
+  s_b560cdb43135e9::t_00603bc5406d2d 739,4701
+web/src/i18n/locales/ja.json
+  s_b560cdb43135e9::t_b368c11c3774f6 739,4701
+web/src/i18n/locales/ru.json
+  s_b560cdb43135e9::t_de2473db3ff037 739,4701
+web/src/i18n/locales/vi.json
+  s_b560cdb43135e9::t_1efa421c2cfb74 739,4701
+web/src/i18n/locales/zh-TW.json
+  s_b560cdb43135e9::t_60b47b3461b0e9 739,4701
+web/src/i18n/locales/zh.json
+  s_b560cdb43135e9::t_f73d095d690154 739,4701
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "80db2347f4f824d654045a8ca0782a81fabeb2d8",
+  "prompts": {},
+  "sessions": {
+    "s_b560cdb43135e9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b560cdb43135e9",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
