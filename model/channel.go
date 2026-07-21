@@ -59,6 +59,8 @@ type Channel struct {
 	// nil or 0 is treated as 1.0 (no adjustment). Values < 1 reduce cost, > 1 increase cost.
 	Ratio *float64 `json:"ratio" gorm:"default:1"`
 
+	RetryAttempts *int `json:"retry_attempts"` // 单个请求在此渠道上的总尝试次数，包含首次请求
+
 	// cache info
 	Keys []string `json:"-" gorm:"-"`
 }
@@ -497,6 +499,13 @@ func (channel *Channel) GetWeight() int {
 		return 0
 	}
 	return int(*channel.Weight)
+}
+
+func (channel *Channel) GetRetryAttempts() int {
+	if channel.RetryAttempts == nil || *channel.RetryAttempts < 1 {
+		return 1
+	}
+	return *channel.RetryAttempts
 }
 
 func (channel *Channel) GetBaseURL() string {
