@@ -44,6 +44,7 @@ GOODS = {
     "r07y8g": ("plan", 1),   # Pro x1 ¥199
     "uhwx0f": ("plan", 4),   # Pro x2 ¥329
     "bx9j3s": ("plan", 5),   # Pro x3 ¥499
+    "cbcg11": ("quota", 10 * QUOTA_PER_USD),   # ¥5 测试档
     "r5ufqm": ("quota", 40 * QUOTA_PER_USD),
     "ot5e6z": ("quota", 100 * QUOTA_PER_USD),
     "jyq5ae": ("quota", 200 * QUOTA_PER_USD),
@@ -96,7 +97,7 @@ def newapi_user_from_jwt(jwt):
     r = http_json(f"{NEW_API_BASE}/api/user/self", bearer=jwt)
     if not r.get("success"):
         raise ValueError("invalid jwt")
-    return r["data"]["id"]
+    return r["data"]["id"], (r["data"].get("email") or r["data"].get("username") or "")
 
 
 def extract_cards(payload):
@@ -125,8 +126,42 @@ def grant(order):
                       {"user_id": uid, "plan_id": value}, bearer=admin_token())
     else:
         r = http_json(f"{NEW_API_BASE}/api/user/manage",
-                      {"id": uid, "action": "add_quota", "value": value}, bearer=admin_token())
+                      {"id": uid, "action": "add_quota", "mode": "add", "value": value},
+                      bearer=admin_token())
     return r.get("success"), r
+
+
+def mark_codes_used(codes, user_id):
+    """Invalidate delivered codes in new-api so the buyer cannot redeem them a
+    second time after our auto-grant. Marks them exactly like a real redeem."""
+    if not codes:
+        return
+    now = int(time.time())
+    for code in codes:
+        subprocess.run(["docker", "exec", "new-api-dev-pg", "psql", "-U", "root",
+                        "-d", "new-api", "-c",
+                        f"UPDATE redemptions SET status=3, used_user_id={user_id}, "
+                        f"redeemed_time={now} WHERE key='{code}' AND status=1;"],
+                       capture_output=True)
+
+
+def goods_id_map():
+    r = catfk("goods", "list")
+    items = r.get("data") or r.get("goods") or []
+    return {g.get("goods_key"): g.get("id") for g in items}
+
+
+def sold_cards(goods_key, exclude_secrets=None):
+    """Cards sold (delivered) for a goods. Card rows carry no trade_no or sold
+    timestamp, so we return all sold cards minus ones already attributed to
+    other orders."""
+    gid = goods_id_map().get(goods_key)
+    if not gid:
+        return []
+    r = catfk("stock", "list", str(gid))
+    items = r.get("list") or r.get("data") or []
+    excl = set(exclude_secrets or [])
+    return [c for c in items if c.get("status") == 1 and c.get("secret") not in excl]
 
 
 def check_and_grant(trade_no):
@@ -139,11 +174,14 @@ def check_and_grant(trade_no):
     resp = catfk("order", "status", trade_no)
     if resp.get("code") != 1:
         return {"status": "pending", "payurl": order["payurl"]}
-    # paid — extract delivered cards and grant
-    cards = extract_cards(resp)
-    print(f"[checkout] PAID {trade_no}, cards found: {len(cards)}; raw: {json.dumps(resp, ensure_ascii=False)[:800]}", flush=True)
+    # paid — find the delivered cards (sold by catfk from this goods' stock,
+    # minus cards already attributed to other orders)
+    known = {s for o in orders.values() for s in o.get("cards", [])}
+    cards = [c["secret"] for c in sold_cards(order["goods_key"], known)]
+    print(f"[checkout] PAID {trade_no}, delivered cards: {cards}", flush=True)
     ok, grant_resp = grant(order)
     if ok:
+        mark_codes_used(cards, order["user_id"])
         order["granted"] = True
         order["cards"] = cards
         orders[trade_no] = order
@@ -193,9 +231,9 @@ class Handler(BaseHTTPRequestHandler):
             if goods_key not in GOODS:
                 return self._json(400, {"error": f"unknown goods_key {goods_key}"})
             jwt = req.get("jwt", "")
-            user_id = newapi_user_from_jwt(jwt)
+            user_id, user_email = newapi_user_from_jwt(jwt)
             kind, value = GOODS[goods_key]
-            contact = req.get("contact") or ""
+            contact = req.get("contact") or user_email
             r = catfk("order", "create", goods_key, "--qty", "1", "--channel", "1",
                       "--contact", contact, "--confirm")
             trade_no, payurl = r.get("trade_no"), r.get("payurl")

@@ -23,6 +23,23 @@ export function catfkLinkForPrice(price: number): string | undefined {
   return CATFK_MONTHLY_LINK_BY_PRICE[Math.round(price)]
 }
 
+// 套餐价格 -> 云猫 goods_key(自动 checkout 用)。
+const CATFK_GOODS_KEY_BY_PRICE: Record<number, string> = {
+  59: 'vk898s',
+  119: 'e0b3y5',
+  199: 'r07y8g',
+  329: 'uhwx0f',
+  499: 'bx9j3s',
+  20: 'r5ufqm',
+  50: 'ot5e6z',
+  100: 'jyq5ae',
+  200: 'paibsa',
+}
+
+export function catfkGoodsKeyForPrice(price: number): string | undefined {
+  return CATFK_GOODS_KEY_BY_PRICE[Math.round(price)]
+}
+
 // --- 按量付费(买量)档位 ---
 export const CATFK_TOPUP_LINK_BY_PRICE: Record<number, string> = {
   20: 'https://catfk.com/item/r5ufqm',

@@ -50,8 +50,8 @@ import {
   getSelfSubscriptionFull,
   updateBillingPreference,
 } from '@/features/subscriptions/api'
-import { SubscriptionPurchaseDialog } from '@/features/subscriptions/components/dialogs/subscription-purchase-dialog'
 import { catfkLinkForPrice } from '@/features/subscriptions/lib/catfk-plans'
+import { runCatfkCheckout } from '@/features/subscriptions/lib/catfk-checkout'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
   PlanRecord,
@@ -59,20 +59,15 @@ import type {
 } from '@/features/subscriptions/types'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
-import type { PaymentMethod, TopupInfo } from '../types'
+import type { TopupInfo } from '../types'
 
 interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
   onAvailabilityChange?: (available: boolean) => void
   userQuota?: number
   onPurchaseSuccess?: () => void | Promise<void>
-}
-
-function getEpayMethods(payMethods: PaymentMethod[] = []): PaymentMethod[] {
-  return payMethods.filter(
-    (m) => m?.type && m.type !== 'stripe' && m.type !== 'creem'
-  )
 }
 
 function getBillingPreferenceLabel(
@@ -94,9 +89,7 @@ function getBillingPreferenceLabel(
 }
 
 export function SubscriptionPlansCard({
-  topupInfo,
   onAvailabilityChange,
-  userQuota,
   onPurchaseSuccess,
 }: SubscriptionPlansCardProps) {
   const { t } = useTranslation()
@@ -113,17 +106,9 @@ export function SubscriptionPlansCard({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [purchaseOpen, setPurchaseOpen] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
+  const [checkoutPlanId, setCheckoutPlanId] = useState<number | null>(null)
+  const accessToken = useAuthStore((s) => s.auth.accessToken)
 
-  const enableStripe = !!topupInfo?.enable_stripe_topup
-  const enableCreem = !!topupInfo?.enable_creem_topup
-  const enableWaffoPancake = !!topupInfo?.enable_waffo_pancake_topup
-  const enableOnlineTopUp = !!topupInfo?.enable_online_topup
-  const epayMethods = useMemo(
-    () => getEpayMethods(topupInfo?.pay_methods),
-    [topupInfo?.pay_methods]
-  )
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -168,6 +153,36 @@ export function SubscriptionPlansCard({
       setRefreshing(false)
     }
   }
+
+  const handleCatfkCheckout = useCallback(
+    async (plan: PlanRecord['plan']) => {
+      if (!plan || checkoutPlanId !== null) return
+      if (!accessToken) {
+        toast.error(t('Please log in first'))
+        return
+      }
+      setCheckoutPlanId(plan.id)
+      try {
+        toast.info(t('Opening payment page, please complete payment'))
+        const status = await runCatfkCheckout({
+          price: Number(plan.price_amount || 0),
+          jwt: accessToken,
+        })
+        if (status === 'granted') {
+          toast.success(t('Payment received, subscription activated!'))
+          fetchSelfSubscription()
+          onPurchaseSuccess?.()
+        } else {
+          toast.warning(t('Payment not detected yet, it will activate automatically once confirmed'))
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : t('Checkout failed'))
+      } finally {
+        setCheckoutPlanId(null)
+      }
+    },
+    [accessToken, checkoutPlanId, fetchSelfSubscription, onPurchaseSuccess, t]
+  )
 
   const handlePreferenceChange = async (pref: string) => {
     const previous = billingPreference
@@ -614,27 +629,24 @@ export function SubscriptionPlansCard({
                       <Button
                         variant='outline'
                         className='w-full'
-                        onClick={() =>
-                          window.open(
-                            catfkLinkForPrice(Number(plan.price_amount || 0)),
-                            '_blank',
-                            'noopener,noreferrer'
-                          )
-                        }
+                        disabled={checkoutPlanId !== null}
+                        onClick={() => handleCatfkCheckout(plan)}
                       >
-                        {t('Buy on CatFK')}
+                        {checkoutPlanId === plan.id
+                          ? t('Waiting for payment...')
+                          : t('Buy Now')}
                       </Button>
                     ) : (
-                      <Button
-                        variant='outline'
-                        className='w-full'
-                        onClick={() => {
-                          setSelectedPlan(p)
-                          setPurchaseOpen(true)
-                        }}
-                      >
-                        {t('Subscribe Now')}
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger render={<div />}>
+                          <Button variant='outline' className='w-full' disabled>
+                            {t('Coming Soon')}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('This plan is not available for purchase yet.')}
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </CardContent>
                 </Card>
@@ -655,33 +667,6 @@ export function SubscriptionPlansCard({
         )}
       </TitledCard>
 
-      <SubscriptionPurchaseDialog
-        open={purchaseOpen}
-        onOpenChange={(open) => {
-          setPurchaseOpen(open)
-          if (!open) {
-            fetchSelfSubscription()
-          }
-        }}
-        plan={selectedPlan}
-        enableStripe={enableStripe}
-        enableCreem={enableCreem}
-        enableWaffoPancake={enableWaffoPancake}
-        enableOnlineTopUp={enableOnlineTopUp}
-        epayMethods={epayMethods}
-        userQuota={userQuota}
-        onPurchaseSuccess={onPurchaseSuccess}
-        purchaseLimit={
-          selectedPlan?.plan?.max_purchase_per_user
-            ? Number(selectedPlan.plan.max_purchase_per_user)
-            : undefined
-        }
-        purchaseCount={
-          selectedPlan?.plan?.id
-            ? planPurchaseCountMap.get(selectedPlan.plan.id)
-            : undefined
-        }
-      />
     </>
   )
 }

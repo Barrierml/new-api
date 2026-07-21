@@ -19,11 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import { Gift, ExternalLink, Loader2, Receipt, WalletCards } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import {
-  CATFK_TOPUP_LINK_BY_PRICE,
   CATFK_TOPUP_PRICES,
 } from '@/features/subscriptions/lib/catfk-plans'
+import { runCatfkCheckout } from '@/features/subscriptions/lib/catfk-checkout'
+import { useAuthStore } from '@/stores/auth-store'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -85,6 +87,7 @@ interface RechargeFormCardProps {
   waffoMinTopup?: number
   onWaffoMethodSelect?: (method: WaffoPayMethod, index: number) => void
   enableWaffoPancakeTopup?: boolean
+  onCheckoutSuccess?: () => void
 }
 
 export function RechargeFormCard({
@@ -115,9 +118,35 @@ export function RechargeFormCard({
   waffoMinTopup,
   onWaffoMethodSelect,
   enableWaffoPancakeTopup,
+  onCheckoutSuccess,
 }: RechargeFormCardProps) {
   const { t } = useTranslation()
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
+  const [checkoutTier, setCheckoutTier] = useState<number | null>(null)
+  const accessToken = useAuthStore((s) => s.auth.accessToken)
+
+  const handleTierCheckout = async (price: number) => {
+    if (checkoutTier !== null) return
+    if (!accessToken) {
+      toast.error(t('Please log in first'))
+      return
+    }
+    setCheckoutTier(price)
+    try {
+      toast.info(t('Opening payment page, please complete payment'))
+      const status = await runCatfkCheckout({ price, jwt: accessToken })
+      if (status === 'granted') {
+        toast.success(t('Payment received, quota credited!'))
+        onCheckoutSuccess?.()
+      } else {
+        toast.warning(t('Payment not detected yet, quota will be credited automatically once confirmed'))
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('Checkout failed'))
+    } finally {
+      setCheckoutTier(null)
+    }
+  }
 
   useEffect(() => {
     setLocalAmount(topupAmount.toString())
@@ -552,14 +581,15 @@ export function RechargeFormCard({
             {CATFK_TOPUP_PRICES.map((price, i) => (
               <span key={price}>
                 {i > 0 && ' · '}
-                <a
-                  href={CATFK_TOPUP_LINK_BY_PRICE[price]}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='underline-offset-4 hover:underline'
+                <button
+                  type='button'
+                  disabled={checkoutTier !== null}
+                  onClick={() => handleTierCheckout(price)}
+                  className='text-primary underline-offset-4 hover:underline disabled:opacity-50'
                 >
                   ¥{price}
-                </a>
+                  {checkoutTier === price ? ' …' : ''}
+                </button>
               </span>
             ))}
           </p>
