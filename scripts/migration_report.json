@@ -1,0 +1,853 @@
+{
+ "users": {
+  "bcrypt": 155,
+  "reset_flag": [
+   [
+    175,
+    "admin@shiroha.tech",
+    "argon2"
+   ],
+   [
+    24,
+    "hahahahhhaaaa@gmail.com",
+    "oauth"
+   ],
+   [
+    23,
+    "",
+    "oauth"
+   ],
+   [
+    37,
+    "",
+    "oauth"
+   ],
+   [
+    46,
+    "jxqg597@gmail.com",
+    "argon2"
+   ],
+   [
+    31,
+    "",
+    "oauth"
+   ],
+   [
+    44,
+    "1145635993@qq.com",
+    "argon2"
+   ],
+   [
+    21,
+    "984292420@qq.com",
+    "oauth"
+   ],
+   [
+    221,
+    "zhangzhengyi443@gmail.com",
+    "oauth"
+   ],
+   [
+    20,
+    "boyuanyu321@gmail.com",
+    "oauth"
+   ],
+   [
+    27,
+    "",
+    "oauth"
+   ],
+   [
+    35,
+    "xtgamespoke@gmail.com",
+    "oauth"
+   ],
+   [
+    22,
+    "dancingbytes@qq.com",
+    "oauth"
+   ],
+   [
+    38,
+    "",
+    "oauth"
+   ],
+   [
+    40,
+    "",
+    "oauth"
+   ],
+   [
+    32,
+    "",
+    "oauth"
+   ],
+   [
+    25,
+    "",
+    "oauth"
+   ],
+   [
+    28,
+    "",
+    "oauth"
+   ],
+   [
+    30,
+    "",
+    "oauth"
+   ],
+   [
+    33,
+    "",
+    "oauth"
+   ],
+   [
+    29,
+    "",
+    "oauth"
+   ],
+   [
+    26,
+    "",
+    "oauth"
+   ],
+   [
+    4,
+    "admin@par.local",
+    "argon2"
+   ],
+   [
+    34,
+    "feiyitan666@gmail.com",
+    "oauth"
+   ],
+   [
+    47,
+    "921295877@qq.com",
+    "argon2"
+   ]
+  ],
+  "no_sapi": [
+   [
+    175,
+    "admin@shiroha.tech"
+   ],
+   [
+    23,
+    ""
+   ],
+   [
+    37,
+    ""
+   ],
+   [
+    31,
+    ""
+   ],
+   [
+    155,
+    "xiaoxiaofengshen@gmail.com"
+   ],
+   [
+    27,
+    ""
+   ],
+   [
+    38,
+    ""
+   ],
+   [
+    40,
+    ""
+   ],
+   [
+    32,
+    ""
+   ],
+   [
+    25,
+    ""
+   ],
+   [
+    30,
+    ""
+   ],
+   [
+    33,
+    ""
+   ]
+  ],
+  "negative": [
+   [
+    105,
+    "feihu.xia@atrenew.com",
+    "-0.04339655"
+   ],
+   [
+    167,
+    "qinhui1214@gmail.com",
+    "-0.01395961"
+   ],
+   [
+    156,
+    "17682301080@163.com",
+    "-0.34286678"
+   ],
+   [
+    143,
+    "luhong7396@foxmail.com",
+    "-3.02452630"
+   ],
+   [
+    138,
+    "15907521264@189.cn",
+    "-0.07706040"
+   ],
+   [
+    103,
+    "yqcyangqingci@163.com",
+    "-0.01818497"
+   ],
+   [
+    24,
+    "hahahahhhaaaa@gmail.com",
+    "-0.01277485"
+   ],
+   [
+    197,
+    "1027056780@qq.com",
+    "-0.01087500"
+   ],
+   [
+    67,
+    "121037937@qq.com",
+    "-13.76450961"
+   ],
+   [
+    121,
+    "chen15225756741@163.com",
+    "-0.13087370"
+   ],
+   [
+    46,
+    "jxqg597@gmail.com",
+    "-0.09105914"
+   ],
+   [
+    92,
+    "gml18720826651@163.com",
+    "-0.07749894"
+   ],
+   [
+    96,
+    "787568061@qq.com",
+    "-0.02667837"
+   ],
+   [
+    152,
+    "aestusu@gmail.com",
+    "-0.05418093"
+   ],
+   [
+    44,
+    "1145635993@qq.com",
+    "-0.54282595"
+   ],
+   [
+    112,
+    "wudaoxinyan@126.com",
+    "-0.10437256"
+   ],
+   [
+    91,
+    "17802926517@163.com",
+    "-1.96192159"
+   ],
+   [
+    132,
+    "txiang0208@163.com",
+    "-0.07781467"
+   ],
+   [
+    133,
+    "15113204584@139.com",
+    "-0.45590811"
+   ],
+   [
+    136,
+    "15113204584@189.cn",
+    "-0.00023469"
+   ],
+   [
+    100,
+    "1656556479@qq.com",
+    "-0.33825142"
+   ],
+   [
+    140,
+    "15907521262@163.com",
+    "-0.01538160"
+   ],
+   [
+    174,
+    "zhangcheng@abupdate.com",
+    "-0.28088605"
+   ],
+   [
+    134,
+    "15907521262@139.com",
+    "-0.28869710"
+   ],
+   [
+    178,
+    "1205716946@qq.com",
+    "-0.02023844"
+   ],
+   [
+    73,
+    "532805284@qq.com",
+    "-0.02265684"
+   ],
+   [
+    166,
+    "13781615126@163.com",
+    "-0.01554298"
+   ],
+   [
+    176,
+    "whysir2026@126.com",
+    "-0.01010454"
+   ],
+   [
+    22,
+    "dancingbytes@qq.com",
+    "-0.47475517"
+   ],
+   [
+    90,
+    "yysoft1997@outlook.com",
+    "-0.00575328"
+   ],
+   [
+    126,
+    "349266375@qq.com",
+    "-0.28764640"
+   ],
+   [
+    93,
+    "2398647411@qq.com",
+    "-0.43175880"
+   ],
+   [
+    154,
+    "iceyxm@163.com",
+    "-0.01582260"
+   ],
+   [
+    191,
+    "huanghaibin@abupdate.com",
+    "-0.05216244"
+   ],
+   [
+    192,
+    "zhangcheng2223@126.com",
+    "-0.51978280"
+   ],
+   [
+    194,
+    "m17705654420@163.com",
+    "-0.00080105"
+   ],
+   [
+    200,
+    "3080045301@qq.com",
+    "-0.01093250"
+   ],
+   [
+    169,
+    "2439585558@qq.com",
+    "-0.02701959"
+   ],
+   [
+    181,
+    "mytest2026@126.com",
+    "-0.01285810"
+   ],
+   [
+    179,
+    "1870192580@qq.com",
+    "-0.89416030"
+   ],
+   [
+    196,
+    "1432748004@qq.com",
+    "-0.01064862"
+   ],
+   [
+    168,
+    "fanghui@abupdate.com",
+    "-0.00751607"
+   ],
+   [
+    47,
+    "921295877@qq.com",
+    "-0.18006487"
+   ]
+  ],
+  "clamped": [],
+  "username_fallback": [
+   [
+    105,
+    "feihu.xia@atrenew.com"
+   ],
+   [
+    213,
+    "ericsugars@outlook.com"
+   ],
+   [
+    101,
+    "lszlsgslz123@gmail.com"
+   ],
+   [
+    143,
+    "luhong7396@foxmail.com"
+   ],
+   [
+    103,
+    "yqcyangqingci@163.com"
+   ],
+   [
+    24,
+    "hahahahhhaaaa@gmail.com"
+   ],
+   [
+    23,
+    ""
+   ],
+   [
+    37,
+    ""
+   ],
+   [
+    121,
+    "chen15225756741@163.com"
+   ],
+   [
+    102,
+    "liuweijia.vip@gmail.com"
+   ],
+   [
+    106,
+    "kdhzn85kh@mycompany.qzz.io"
+   ],
+   [
+    207,
+    "jarlzhang.k@gmail.com"
+   ],
+   [
+    206,
+    "wangtuling@abupdate.com"
+   ],
+   [
+    31,
+    ""
+   ],
+   [
+    92,
+    "gml18720826651@163.com"
+   ],
+   [
+    172,
+    "zhangzhibing@abupdate.com"
+   ],
+   [
+    215,
+    "yg15088701592@gmail.com"
+   ],
+   [
+    208,
+    "KDCJT202421@outlook.com"
+   ],
+   [
+    221,
+    "zhangzhengyi443@gmail.com"
+   ],
+   [
+    20,
+    "boyuanyu321@gmail.com"
+   ],
+   [
+    155,
+    "xiaoxiaofengshen@gmail.com"
+   ],
+   [
+    162,
+    "ritarifraizer675@gmail.com"
+   ],
+   [
+    212,
+    "xiaoqingyan71@gmail.com"
+   ],
+   [
+    27,
+    ""
+   ],
+   [
+    209,
+    "lonelylamp@vip.qq.com"
+   ],
+   [
+    174,
+    "zhangcheng@abupdate.com"
+   ],
+   [
+    35,
+    "xtgamespoke@gmail.com"
+   ],
+   [
+    180,
+    "yilinchen23@m.fudan.edu.cn"
+   ],
+   [
+    38,
+    ""
+   ],
+   [
+    75,
+    "julianbrian.lanmao@gmail.com"
+   ],
+   [
+    147,
+    "xiechuanfang1991@gmail.com"
+   ],
+   [
+    64,
+    "start.xingying@gmail.com"
+   ],
+   [
+    69,
+    "gg1196768261@gmail.com"
+   ],
+   [
+    70,
+    "liuqi.12138com@qq.com"
+   ],
+   [
+    80,
+    "leowangprompt@gmail.com"
+   ],
+   [
+    81,
+    "chelseaxiaome@gmail.com"
+   ],
+   [
+    40,
+    ""
+   ],
+   [
+    90,
+    "yysoft1997@outlook.com"
+   ],
+   [
+    157,
+    "chen15225756741@126.com"
+   ],
+   [
+    32,
+    ""
+   ],
+   [
+    25,
+    ""
+   ],
+   [
+    28,
+    ""
+   ],
+   [
+    30,
+    ""
+   ],
+   [
+    33,
+    ""
+   ],
+   [
+    29,
+    ""
+   ],
+   [
+    123,
+    "chenliang.fighter@gmail.com"
+   ],
+   [
+    127,
+    "fuhongcheng_fhc@163.com"
+   ],
+   [
+    184,
+    "21111520008@m.fudan.edu.cn"
+   ],
+   [
+    191,
+    "huanghaibin@abupdate.com"
+   ],
+   [
+    186,
+    "mona217ajar@gmail.com"
+   ],
+   [
+    26,
+    ""
+   ],
+   [
+    192,
+    "zhangcheng2223@126.com"
+   ],
+   [
+    190,
+    "pourlexterieur@gmail.com"
+   ],
+   [
+    199,
+    "dongshao910@foxmail.com"
+   ],
+   [
+    119,
+    "mrzousheng@hotmail.com"
+   ],
+   [
+    34,
+    "feiyitan666@gmail.com"
+   ]
+  ],
+  "skipped_existing": 0,
+  "inserted": 180
+ },
+ "tokens": {
+  "inserted": 171
+ },
+ "subscriptions": {
+  "null_expiry": [
+   [
+    26,
+    "Pro x1"
+   ],
+   [
+    113,
+    "Pro x1"
+   ],
+   [
+    19,
+    "Pro x4"
+   ]
+  ],
+  "inserted": 36,
+  "next_reset": 1785081600
+ },
+ "pricing": {
+  "models": 42,
+  "skipped": [],
+  "anchors": {
+   "claude-fable-5": 55.0,
+   "gpt-5.4": 0.625,
+   "deepseek-v3.2": 0.0572
+  }
+ },
+ "redemptions": {
+  "topup_inserted": 25,
+  "plan_codes": [
+   {
+    "code": "CTHGnQFgdJXVRwfs",
+    "expires_at": 1846603500,
+    "created_at": 1783416353
+   },
+   {
+    "code": "W7jCW2GXqX87b6z7",
+    "expires_at": 1846603560,
+    "created_at": 1783416379
+   },
+   {
+    "code": "kX2YbCMEeZQsDhyZ",
+    "expires_at": 1846603560,
+    "created_at": 1783416408
+   },
+   {
+    "code": "5KwQumfmHWaShjy9",
+    "expires_at": 1846603620,
+    "created_at": 1783416446
+   },
+   {
+    "code": "SsTZAAz9ggAqUh57",
+    "expires_at": 1846603620,
+    "created_at": 1783416477
+   },
+   {
+    "code": "r2Ypme7Snpqf9TB8",
+    "expires_at": 1846603680,
+    "created_at": 1783416518
+   },
+   {
+    "code": "gcMdf5UxbgNfJfqZ",
+    "expires_at": 1846603680,
+    "created_at": 1783416551
+   },
+   {
+    "code": "CmWh7vXqNm4Dc6CX",
+    "expires_at": 1846603740,
+    "created_at": 1783416574
+   },
+   {
+    "code": "tLdkgAcpp7NsvQWf",
+    "expires_at": 1846603740,
+    "created_at": 1783416592
+   },
+   {
+    "code": "nKFpmVEUDgKfBakZ",
+    "expires_at": 1846603800,
+    "created_at": 1783416613
+   },
+   {
+    "code": "vDQW9Q2rUNMaEjRX",
+    "expires_at": 1846603800,
+    "created_at": 1783416636
+   },
+   {
+    "code": "DjRjEfMZPdM63gUY",
+    "expires_at": 1846603920,
+    "created_at": 1783416730
+   },
+   {
+    "code": "TVTeFeyzr5ng7NDg",
+    "expires_at": 1846603980,
+    "created_at": 1783416836
+   },
+   {
+    "code": "e9WAanmkVZ6dYNv3",
+    "expires_at": 1846604100,
+    "created_at": 1783416988
+   },
+   {
+    "code": "35983D5n43tZRGXs",
+    "expires_at": 1846604160,
+    "created_at": 1783417004
+   },
+   {
+    "code": "K9W7BHBYFRsTfvmz",
+    "expires_at": 1846604160,
+    "created_at": 1783417025
+   },
+   {
+    "code": "AsSYNkuUgHhe7CXG",
+    "expires_at": 1846604220,
+    "created_at": 1783417044
+   },
+   {
+    "code": "MYY8ZnG7WLVvGH6z",
+    "expires_at": 1846604220,
+    "created_at": 1783417071
+   },
+   {
+    "code": "c2nyKpaVNuZqAfwh",
+    "expires_at": 1846604280,
+    "created_at": 1783417131
+   },
+   {
+    "code": "ZXTWX6jbctSvnFZ2",
+    "expires_at": 1846604340,
+    "created_at": 1783417194
+   },
+   {
+    "code": "QahYjcccN2AbkNxU",
+    "expires_at": 1846604400,
+    "created_at": 1783417217
+   },
+   {
+    "code": "qFppd4qvajdYxLfX",
+    "expires_at": 1846604400,
+    "created_at": 1783417262
+   },
+   {
+    "code": "TppRUMkCNyaBKq84",
+    "expires_at": 1846604460,
+    "created_at": 1783417278
+   },
+   {
+    "code": "eQMBpjH8eLpWD2Vt",
+    "expires_at": 1846604460,
+    "created_at": 1783417291
+   },
+   {
+    "code": "aRVmsMaVYb73b43d",
+    "expires_at": 1846604460,
+    "created_at": 1783417314
+   },
+   {
+    "code": "xRTCsjFrHvkJ3xv6",
+    "expires_at": 1846604520,
+    "created_at": 1783417368
+   },
+   {
+    "code": "P63qRh8SG6nySdHd",
+    "expires_at": 1783446120,
+    "created_at": 1783417391
+   },
+   {
+    "code": "jpDq7K5PJqGWwnrw",
+    "expires_at": 1846604580,
+    "created_at": 1783417417
+   },
+   {
+    "code": "F4zHQtfuY2xnk4ec",
+    "expires_at": 1846604580,
+    "created_at": 1783417434
+   },
+   {
+    "code": "pq9ujfn2CDzLCxKC",
+    "expires_at": 1846604640,
+    "created_at": 1783417456
+   },
+   {
+    "code": "YZXvYwKBc9g42zMj",
+    "expires_at": 1846604640,
+    "created_at": 1783417480
+   },
+   {
+    "code": "WNa8MyvzMYCYxk7H",
+    "expires_at": 1846604700,
+    "created_at": 1783417513
+   },
+   {
+    "code": "tUL4APwPJ3zELtwT",
+    "expires_at": 1846604700,
+    "created_at": 1783417543
+   },
+   {
+    "code": "CXCXe5thJcw7t8qf",
+    "expires_at": 1846604760,
+    "created_at": 1783417572
+   },
+   {
+    "code": "gv5dpj5n4rEypvEE",
+    "expires_at": 1846604760,
+    "created_at": 1783417590
+   },
+   {
+    "code": "KzkjvxH7YAYpYTVv",
+    "expires_at": 1784565129,
+    "created_at": 1783960329
+   },
+   {
+    "code": "fUVCGxWBnZMs6FK7",
+    "expires_at": 1847391660,
+    "created_at": 1784204547
+   },
+   {
+    "code": "jxdxQx647QT8WxWm",
+    "expires_at": 1847391720,
+    "created_at": 1784204580
+   }
+  ]
+ }
+}

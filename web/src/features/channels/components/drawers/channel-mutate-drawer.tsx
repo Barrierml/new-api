@@ -3676,6 +3676,34 @@ export function ChannelMutateDrawer({
                                   </FormItem>
                                 )}
                               />
+
+                              <FormField
+                                control={form.control}
+                                name='ratio'
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{t('Channel Ratio')}</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type='number'
+                                        step='0.01'
+                                        min='0.01'
+                                        placeholder='1'
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(Number(e.target.value) || 1)
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormDescription>
+                                      {t(
+                                        'A billing multiplier. Lower ratios mean lower API call costs.'
+                                      )}
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                             </div>
 
                             <FormField
