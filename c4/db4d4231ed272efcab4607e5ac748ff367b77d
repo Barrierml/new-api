@@ -1,0 +1,67 @@
+controller/model.go
+  s_e0a8a6950a2e85::t_577836be9d516a 222-235
+controller/redemption.go
+  s_e0a8a6950a2e85::t_8300e2bd638470 88-101,110-117,178-193
+controller/redemption_topup_test.go
+  s_e0a8a6950a2e85::t_e4b2a9316812c6 1-53
+model/errors.go
+  s_e0a8a6950a2e85::t_7a543a2c72f0ae 26-31
+model/redemption.go
+  s_e0a8a6950a2e85::t_bd0bdd75887d56 7,16-54,88,153,164-166,170,172,175,178,188,191,194,196-198,202,209-210,212,215-239,242-244,246-255,257,274,301-348
+model/redemption_subscription_test.go
+  s_e0a8a6950a2e85::t_edb1cc63bde798 1-117
+model/redemption_test.go
+  s_e0a8a6950a2e85::t_c3316f8bc6de3e 131,133-134
+model/task_cas_test.go
+  s_e0a8a6950a2e85::t_bbf24cb5e918e7 18,35,52,86
+relay/helper/stream_scanner.go
+  s_e0a8a6950a2e85::t_d7e8687e2ee0a2 83-85,90-95
+web/src/features/redemption-codes/components/redemptions-columns.tsx
+  s_e0a8a6950a2e85::t_78f386a2fea7d2 22,160-163,165-177
+web/src/features/redemption-codes/components/redemptions-mutate-drawer.tsx
+  s_e0a8a6950a2e85::t_9d5d1a925e5a10 44-50,63-64,92,98,115-132,246,249-255,257-272,274,281-353
+web/src/features/redemption-codes/lib/redemption-form.ts
+  s_e0a8a6950a2e85::t_a2813918fe9a96 36-70,74-75,87-88,107-113,128-129
+web/src/features/redemption-codes/types.ts
+  s_e0a8a6950a2e85::t_b5c7ed4840a70b 32-34,80-81
+web/src/features/wallet/hooks/use-redemption.ts
+  s_e0a8a6950a2e85::t_4087bdcef49cf5 45-68
+web/src/features/wallet/types.ts
+  s_e0a8a6950a2e85::t_d2550ebbcf1d96 36-44
+web/src/i18n/locales/_reports/_sync-report.json
+  s_e0a8a6950a2e85::t_e28042849a7204 2,6,12,18,24,30,36
+web/src/i18n/locales/en.json
+  s_e0a8a6950a2e85::t_ca2f26169ab9ef 6
+web/src/i18n/locales/fr.json
+  s_e0a8a6950a2e85::t_eb4cf62670742b 6
+web/src/i18n/locales/ja.json
+  s_e0a8a6950a2e85::t_cda1a7df1f8427 6
+web/src/i18n/locales/ru.json
+  s_e0a8a6950a2e85::t_6fd9e8ea6322dc 6
+web/src/i18n/locales/vi.json
+  s_e0a8a6950a2e85::t_c0e919d8128a2a 6
+web/src/i18n/locales/zh-TW.json
+  s_e0a8a6950a2e85::t_a24d529684d2d0 6
+web/src/i18n/locales/zh.json
+  s_e0a8a6950a2e85::t_1cdd79616ed34b 6
+web/src/i18n/static-keys.ts
+  s_e0a8a6950a2e85::t_17ec589d319bc4 427-435
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c4db4d4231ed272efcab4607e5ac748ff367b77d",
+  "prompts": {},
+  "sessions": {
+    "s_e0a8a6950a2e85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e0a8a6950a2e85",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
