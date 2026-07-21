@@ -1,0 +1,27 @@
+controller/subscription.go
+  s_74cfbceec1c167::t_2dedaaf8541338 137-147,175-179,263-267
+web/src/features/subscriptions/components/subscriptions-columns.tsx
+  s_74cfbceec1c167::t_e9690dffcb383d 27,72
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_74cfbceec1c167::t_aca8af1495017d 61,637
+web/src/lib/format.ts
+  s_74cfbceec1c167::t_e589063e3a7245 284-289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6b9244492292d52abfd98a6807d390b5e12ea4c4",
+  "prompts": {},
+  "sessions": {
+    "s_74cfbceec1c167": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_74cfbceec1c167",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
