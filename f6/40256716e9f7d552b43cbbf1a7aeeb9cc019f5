@@ -1,0 +1,21 @@
+scripts/catfk-checkout.py
+  s_0e9c00fe94ba22::t_4e22424ebdfb3a 1-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f640256716e9f7d552b43cbbf1a7aeeb9cc019f5",
+  "prompts": {},
+  "sessions": {
+    "s_0e9c00fe94ba22": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_0e9c00fe94ba22",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
