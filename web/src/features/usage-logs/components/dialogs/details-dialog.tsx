@@ -674,16 +674,18 @@ export function DetailsDialog(props: DetailsDialogProps) {
             />
           )}
 
-          {props.isAdmin &&
-            typeof other?.channel_ratio === 'number' &&
-            other.channel_ratio > 0 &&
-            other.channel_ratio !== 1 && (
-              <DetailRow
-                label={t('Channel Ratio')}
-                value={`${other.channel_ratio}x`}
-                mono
-              />
-            )}
+          {props.isAdmin && (
+            <DetailRow
+              label={t('Channel Ratio')}
+              value={`${
+                typeof other?.channel_ratio === 'number' &&
+                other.channel_ratio > 0
+                  ? other.channel_ratio
+                  : 1
+              }x`}
+              mono
+            />
+          )}
 
           {channelChain && props.isAdmin && (
             <DetailRow label={t('Retry Chain')} value={channelChain} mono />

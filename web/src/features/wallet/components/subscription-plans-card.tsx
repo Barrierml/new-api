@@ -118,6 +118,8 @@ function parseSubQuotaLimits(raw?: string): SubQuotaLimitItem[] {
 
 function SubQuotaUsageList({ usages }: { usages: SubQuotaUsage[] }) {
   const { t } = useTranslation()
+  const fmt = (usd: number) =>
+    usd > 0 && usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)
   return (
     <div className='mt-2 space-y-2'>
       {usages.map((u) => {
@@ -134,9 +136,8 @@ function SubQuotaUsageList({ usages }: { usages: SubQuotaUsage[] }) {
               )}
             </div>
             <div className='text-muted-foreground mt-1 text-xs'>
-              {t('Used')} ${(u.used_usd || 0).toFixed(2)} / $
-              {(u.limit_usd || 0).toFixed(2)} · {t('Remaining')} $
-              {(u.remaining_usd || 0).toFixed(2)} ({usagePct}%)
+              {t('Used')} ${fmt(u.used_usd || 0)} / ${fmt(u.limit_usd || 0)} ·{' '}
+              {t('Remaining')} ${fmt(u.remaining_usd || 0)} ({usagePct}%)
               {u.reset_time > 0 &&
                 ` · ${t('Next reset')}: ${new Date(u.reset_time * 1000).toLocaleString()}`}
             </div>

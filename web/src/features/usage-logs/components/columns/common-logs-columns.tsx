@@ -714,15 +714,20 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <StatusBadge
-                      label={t('Subscription')}
-                      variant='success'
-                      size='sm'
-                      copyable={false}
-                      className='cursor-help'
-                    />
+                    <div className='flex cursor-help flex-col gap-0.5' />
                   }
-                />
+                >
+                  <StatusBadge
+                    label={t('Subscription')}
+                    variant='success'
+                    size='sm'
+                    copyable={false}
+                    className='w-fit'
+                  />
+                  <span className='text-muted-foreground text-xs tabular-nums'>
+                    -{formatLogQuota(quota)}
+                  </span>
+                </TooltipTrigger>
                 <TooltipContent>
                   <span>
                     {t('Deducted by subscription')}: {formatLogQuota(quota)}

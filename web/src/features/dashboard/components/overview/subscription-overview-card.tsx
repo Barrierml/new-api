@@ -32,6 +32,11 @@ import {
 import type { SubQuotaUsage } from '@/features/subscriptions/types'
 import { formatQuota } from '@/lib/format'
 
+function formatWindowUsd(usd: number): string {
+  // 小额用量保留 4 位,避免 $0.002 显示成 $0.00 看起来像没计费
+  return usd > 0 && usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)
+}
+
 function SubQuotaBar({ usage }: { usage: SubQuotaUsage }) {
   const { t } = useTranslation()
   const pct = Math.min(100, Math.round(usage.percent || 0))
@@ -42,11 +47,17 @@ function SubQuotaBar({ usage }: { usage: SubQuotaUsage }) {
           {usage.name || t('Sub Limit')}
         </span>
         <span className='shrink-0 font-medium'>
-          ${(usage.used_usd || 0).toFixed(2)} / $
-          {(usage.limit_usd || 0).toFixed(2)}
+          ${formatWindowUsd(usage.used_usd || 0)} / $
+          {formatWindowUsd(usage.limit_usd || 0)}
         </span>
       </div>
       <Progress value={pct} className='mt-1.5 h-1.5' />
+      {usage.reset_time > 0 && (
+        <div className='text-muted-foreground mt-1 text-[11px]'>
+          {t('Next reset')}:{' '}
+          {new Date(usage.reset_time * 1000).toLocaleString()}
+        </div>
+      )}
     </div>
   )
 }
