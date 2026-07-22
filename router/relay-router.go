@@ -88,6 +88,8 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/messages", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatClaude)
 		})
+		// claude count_tokens：上游原生支持就透传（含 cache 拆分），否则回退本地 tokenizer 估算
+		httpRouter.POST("/messages/count_tokens", controller.CountTokensClaude)
 
 		// chat related routes
 		httpRouter.POST("/completions", func(c *gin.Context) {
