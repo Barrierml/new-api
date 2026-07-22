@@ -1,0 +1,29 @@
+web/src/features/dashboard/components/overview/overview-dashboard.tsx
+  s_47c5f5198e5475::t_593350f1288721 755-756
+web/src/features/dashboard/components/overview/subscription-overview-card.tsx
+  s_47c5f5198e5475::t_a1fcdcdb6d8883 21,34,41-47,84,99-104,106-107,134-136,142,145-169,172-175,178-196,199-205,208-213,215-249,251-256
+web/src/i18n/locales/en.json
+  s_47c5f5198e5475::t_992482b65cfa6e 5281-5282
+web/src/i18n/locales/zh-TW.json
+  s_47c5f5198e5475::t_65b01dc2960fe9 5281-5282
+web/src/i18n/locales/zh.json
+  s_47c5f5198e5475::t_532a8f3679ac7b 5281-5282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9b42ae804ee459e1c43cc6130e3a65574345b65f",
+  "prompts": {},
+  "sessions": {
+    "s_47c5f5198e5475": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9668163d-d9d3-4f83-869f-e87ca247d3ae",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
