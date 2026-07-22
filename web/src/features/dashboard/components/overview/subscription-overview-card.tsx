@@ -176,7 +176,9 @@ export function SubscriptionOverviewCard() {
         {totalAmount > 0 && (
           <div className='min-w-0'>
             <div className='flex items-center justify-between gap-2 text-xs'>
-              <span className='text-muted-foreground'>{t('Total Quota')}</span>
+              <span className='text-muted-foreground'>
+                {t('Weekly Quota')}
+              </span>
               <span className='shrink-0 font-medium'>
                 {formatQuota(usedAmount)} / {formatQuota(totalAmount)} (
                 {usagePct}%)

@@ -328,8 +328,8 @@ export function SubscriptionPlansCard({
           ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
           : null,
         totalAmount > 0
-          ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
-          : `${t('Total Quota')}: ${t('Unlimited')}`,
+          ? `${t('Weekly Quota')}: ${formatQuota(totalAmount)}`
+          : `${t('Weekly Quota')}: ${t('Unlimited')}`,
         ...subLimits.map(
           (s) =>
             `${s.name || t('Sub Limit')}: $${Number(s.limit_usd || 0).toFixed(0)}`
@@ -587,7 +587,7 @@ export function SubscriptionPlansCard({
                       </div>
                     )}
                     <div className='text-muted-foreground mt-1'>
-                      {t('Total Quota')}:{' '}
+                      {t('Weekly Quota')}:{' '}
                       {totalAmount > 0 ? (
                         <Tooltip>
                           <TooltipTrigger
