@@ -1,0 +1,41 @@
+scripts/.gitignore
+  s_6c791d00110793::t_179133f16175e6 1
+scripts/catfk-checkout.py
+  s_6c791d00110793::t_673e7c0df91d34 5-8,11-12,48,98-130,272-274,282,284
+scripts/catfk-stock-sync.py
+  s_6c791d00110793::t_ae110f61c035eb 39-40
+web/src/features/subscriptions/lib/catfk-checkout.ts
+  s_6c791d00110793::t_080683cb9227a3 1,8-9,24-25,30,57,65-69
+web/src/features/subscriptions/lib/catfk-plans.ts
+  s_6c791d00110793::t_f7938c7247e8b6 11,19,22,34
+web/src/features/wallet/components/recharge-form-card.tsx
+  s_6c791d00110793::t_0450f0dcb57f8d 24,26-28,44,92,124,128-132,135-136,141,144,149-153,158,240-241,260-328,330
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_6c791d00110793::t_93b955d464826d 53-57,95-111,162-163,211-212,217,223,230-234,239,242,335-365,367-368,370-380,383-393,396-441,443,445-457,459-486,488-496,501-522,524-529,531-538,540-541,543-566,569-582,584-628,630-635,637-640,642-658,660-664,666-668,670-682,684-743
+web/src/features/wallet/index.tsx
+  s_6c791d00110793::t_9cbf1f0b535494 283-290,292-320
+web/src/i18n/locales/en.json
+  s_6c791d00110793::t_e06aaf56c03ddd 2045,5256-5277
+web/src/i18n/locales/zh-TW.json
+  s_6c791d00110793::t_c25b82cade67ff 2045,5256-5277
+web/src/i18n/locales/zh.json
+  s_6c791d00110793::t_7ee938d8888249 2045,5256-5277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "651c43e3e9d817b5f6e70e3e83c8c6267276ae5d",
+  "prompts": {},
+  "sessions": {
+    "s_6c791d00110793": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_6c791d00110793",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
