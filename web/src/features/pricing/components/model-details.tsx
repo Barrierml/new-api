@@ -28,6 +28,7 @@ import {
   Layers,
   Maximize2,
   Sparkles,
+  Terminal,
   Timer,
 } from 'lucide-react'
 import { useMemo } from 'react'
@@ -84,6 +85,7 @@ import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelDetailsApi } from './model-details-api'
 import { ModelDetailsPerformance } from './model-details-performance'
+import { ModelDetailsTutorials } from './model-details-tutorials'
 
 // ----------------------------------------------------------------------------
 // Local UI helpers
@@ -1128,7 +1130,7 @@ function GroupPricingSection(props: {
   )
 }
 
-const TAB_VALUES = ['overview', 'performance', 'api'] as const
+const TAB_VALUES = ['overview', 'performance', 'tutorials', 'api'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 const TAB_META: Record<
@@ -1137,6 +1139,7 @@ const TAB_META: Record<
 > = {
   overview: { icon: Info, labelKey: 'Overview' },
   performance: { icon: HeartPulse, labelKey: 'Performance' },
+  tutorials: { icon: Terminal, labelKey: 'Tools' },
   api: { icon: Code2, labelKey: 'API' },
 }
 
@@ -1165,7 +1168,7 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
       <ModelHeader model={props.model} />
 
       <Tabs defaultValue='overview' className='gap-4'>
-        <TabsList className='bg-muted/60 grid w-full grid-cols-3 gap-1 rounded-lg p-1 group-data-horizontal/tabs:h-auto'>
+        <TabsList className='bg-muted/60 grid w-full grid-cols-4 gap-1 rounded-lg p-1 group-data-horizontal/tabs:h-auto'>
           {TAB_VALUES.map((value) => {
             const Icon = TAB_META[value].icon
             return (
@@ -1213,6 +1216,10 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
 
         <TabsContent value='performance' className='outline-none'>
           <ModelDetailsPerformance model={props.model} />
+        </TabsContent>
+
+        <TabsContent value='tutorials' className='outline-none'>
+          <ModelDetailsTutorials model={props.model} />
         </TabsContent>
 
         <TabsContent value='api' className='outline-none'>

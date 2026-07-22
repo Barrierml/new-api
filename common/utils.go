@@ -253,7 +253,12 @@ func GenerateRandomKey(length int) (string, error) {
 
 func GenerateKey() (string, error) {
 	//rand.Seed(time.Now().UnixNano())
-	return GenerateRandomCharsKey(48)
+	key, err := GenerateRandomCharsKey(48)
+	if err != nil {
+		return "", err
+	}
+	// 统一用 cr_ 前缀(与 PAR 既有 key 一致),不要 sk-
+	return "cr_" + key, nil
 }
 
 func GetRandomInt(max int) int {

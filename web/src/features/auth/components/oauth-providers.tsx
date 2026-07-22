@@ -140,6 +140,13 @@ export function OAuthProviders({
         key: `custom-${provider.slug}`,
         label: t('Continue with {{name}}', { name: provider.name }),
         onClick: () => handleCustomOAuthLogin(provider),
+        icon: provider.icon ? (
+          <img
+            src={provider.icon}
+            alt=''
+            className='h-4 w-4 object-contain'
+          />
+        ) : undefined,
       })
     }
   }

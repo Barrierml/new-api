@@ -52,7 +52,7 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   const isLoading = !!loadingKeys[apiKey.id]
   const resolvedFullKey = resolvedKeys[apiKey.id]
   const isCopied = copiedKeyId === apiKey.id
-  const maskedKey = `sk-${apiKey.key}`
+  const maskedKey = apiKey.key
 
   const handlePopoverOpen = useCallback(
     (open: boolean) => {
