@@ -50,8 +50,11 @@ import {
   getSelfSubscriptionFull,
   updateBillingPreference,
 } from '@/features/subscriptions/api'
-import { catfkLinkForPrice } from '@/features/subscriptions/lib/catfk-plans'
-import { runCatfkCheckout } from '@/features/subscriptions/lib/catfk-checkout'
+import {
+  runCatfkCheckout,
+  type CatfkPayMethod,
+} from '@/features/subscriptions/lib/catfk-checkout'
+import { catfkGoodsKeyForPrice } from '@/features/subscriptions/lib/catfk-plans'
 import { formatDuration, formatResetPeriod } from '@/features/subscriptions/lib'
 import type {
   PlanRecord,
@@ -89,11 +92,27 @@ function getBillingPreferenceLabel(
   }
 }
 
+interface SubQuotaLimitItem {
+  name?: string
+  period_unit?: string
+  period_value?: number
+  limit_usd?: number
+}
+
+function parseSubQuotaLimits(raw?: string): SubQuotaLimitItem[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 function SubQuotaUsageList({ usages }: { usages: SubQuotaUsage[] }) {
   const { t } = useTranslation()
   return (
     <div className='mt-2 space-y-2'>
-      <div className='text-xs font-medium'>{t('Sub Quota Limits')}</div>
       {usages.map((u) => {
         const usagePct = Math.min(100, Math.round(u.percent || 0))
         const key = `${u.name || 'sub'}-${u.window_start || 0}-${u.window_end || 0}`
@@ -140,9 +159,9 @@ export function SubscriptionPlansCard({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [checkoutPlanId, setCheckoutPlanId] = useState<number | null>(null)
+  // `${planId}:${pay}` 标记正在结算的套餐 + 支付方式
+  const [checkoutKey, setCheckoutKey] = useState<string | null>(null)
   const accessToken = useAuthStore((s) => s.auth.accessToken)
-
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -189,33 +208,38 @@ export function SubscriptionPlansCard({
   }
 
   const handleCatfkCheckout = useCallback(
-    async (plan: PlanRecord['plan']) => {
-      if (!plan || checkoutPlanId !== null) return
+    async (plan: PlanRecord['plan'], pay: CatfkPayMethod) => {
+      if (!plan || checkoutKey !== null) return
       if (!accessToken) {
         toast.error(t('Please log in first'))
         return
       }
-      setCheckoutPlanId(plan.id)
+      setCheckoutKey(`${plan.id}:${pay}`)
       try {
         toast.info(t('Opening payment page, please complete payment'))
         const status = await runCatfkCheckout({
           price: Number(plan.price_amount || 0),
           jwt: accessToken,
+          pay,
         })
         if (status === 'granted') {
           toast.success(t('Payment received, subscription activated!'))
           fetchSelfSubscription()
           onPurchaseSuccess?.()
         } else {
-          toast.warning(t('Payment not detected yet, it will activate automatically once confirmed'))
+          toast.warning(
+            t(
+              'Payment not detected yet, it will activate automatically once confirmed'
+            )
+          )
         }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t('Checkout failed'))
       } finally {
-        setCheckoutPlanId(null)
+        setCheckoutKey(null)
       }
     },
-    [accessToken, checkoutPlanId, fetchSelfSubscription, onPurchaseSuccess, t]
+    [accessToken, checkoutKey, fetchSelfSubscription, onPurchaseSuccess, t]
   )
 
   const handlePreferenceChange = async (pref: string) => {
@@ -308,403 +332,414 @@ export function SubscriptionPlansCard({
   }
 
   return (
-    <>
-      <TitledCard
-        title={t('Subscription Plans')}
-        description={t('Subscribe to a plan for model access')}
-        icon={<Crown className='h-4 w-4' />}
-        iconTone='warning'
-        disableHoverEffect
-        contentClassName='space-y-4 sm:space-y-5'
-      >
-        {/* My subscriptions & billing preference */}
-        <div className='rounded-xl border p-3 sm:p-4'>
-          <div className='flex flex-wrap items-center justify-between gap-2.5 sm:gap-3'>
-            <div className='flex min-w-0 flex-wrap items-center gap-2'>
-              <span className='text-sm font-medium'>
-                {t('My Subscriptions')}
-              </span>
-              <span className='flex items-center gap-1.5 text-xs font-medium'>
-                <span
-                  className={cn(
-                    'size-1.5 shrink-0 rounded-full',
-                    hasActive ? dotColorMap.success : dotColorMap.neutral
-                  )}
-                  aria-hidden='true'
-                />
-                {hasActive ? (
-                  <span className={cn(textColorMap.success)}>
-                    {activeSubscriptions.length} {t('active')}
-                  </span>
-                ) : (
+    <TitledCard
+      title={t('Subscription Plans')}
+      description={t('Subscribe to a plan for model access')}
+      icon={<Crown className='h-4 w-4' />}
+      iconTone='warning'
+      disableHoverEffect
+      contentClassName='space-y-4 sm:space-y-5'
+    >
+      {/* 我的订阅 & 计费偏好 */}
+      <div className='rounded-xl border p-3 sm:p-4'>
+        <div className='flex flex-wrap items-center justify-between gap-2.5 sm:gap-3'>
+          <div className='flex min-w-0 flex-wrap items-center gap-2'>
+            <span className='text-sm font-medium'>{t('My Subscriptions')}</span>
+            <span className='flex items-center gap-1.5 text-xs font-medium'>
+              <span
+                className={cn(
+                  'size-1.5 shrink-0 rounded-full',
+                  hasActive ? dotColorMap.success : dotColorMap.neutral
+                )}
+                aria-hidden='true'
+              />
+              {hasActive ? (
+                <span className={cn(textColorMap.success)}>
+                  {activeSubscriptions.length} {t('active')}
+                </span>
+              ) : (
+                <span className='text-muted-foreground'>{t('No Active')}</span>
+              )}
+              {allSubscriptions.length > activeSubscriptions.length && (
+                <>
+                  <span className='text-muted-foreground/30'>·</span>
                   <span className='text-muted-foreground'>
-                    {t('No Active')}
+                    {allSubscriptions.length - activeSubscriptions.length}{' '}
+                    {t('expired')}
                   </span>
-                )}
-                {allSubscriptions.length > activeSubscriptions.length && (
-                  <>
-                    <span className='text-muted-foreground/30'>·</span>
-                    <span className='text-muted-foreground'>
-                      {allSubscriptions.length - activeSubscriptions.length}{' '}
-                      {t('expired')}
-                    </span>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className='flex w-full items-center gap-2 sm:w-auto'>
-              <Select
-                items={[
-                  {
-                    value: 'subscription_first',
-                    label: (
-                      <>
-                        {getBillingPreferenceLabel('subscription_first', t)}
-                        {disablePref ? ` (${t('No Active')})` : ''}
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'wallet_first',
-                    label: getBillingPreferenceLabel('wallet_first', t),
-                  },
-                  {
-                    value: 'subscription_only',
-                    label: (
-                      <>
-                        {getBillingPreferenceLabel('subscription_only', t)}
-                        {disablePref ? ` (${t('No Active')})` : ''}
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'wallet_only',
-                    label: getBillingPreferenceLabel('wallet_only', t),
-                  },
-                ]}
-                value={displayPref}
-                onValueChange={(v) => v !== null && handlePreferenceChange(v)}
-              >
-                <SelectTrigger className='h-8 flex-1 text-xs sm:w-[140px] sm:flex-none'>
-                  <SelectValue>
-                    {getBillingPreferenceLabel(displayPref, t)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    <SelectItem
-                      value='subscription_first'
-                      disabled={disablePref}
-                    >
+                </>
+              )}
+            </span>
+          </div>
+          <div className='flex w-full items-center gap-2 sm:w-auto'>
+            <Select
+              items={[
+                {
+                  value: 'subscription_first',
+                  label: (
+                    <>
                       {getBillingPreferenceLabel('subscription_first', t)}
                       {disablePref ? ` (${t('No Active')})` : ''}
-                    </SelectItem>
-                    <SelectItem value='wallet_first'>
-                      {getBillingPreferenceLabel('wallet_first', t)}
-                    </SelectItem>
-                    <SelectItem
-                      value='subscription_only'
-                      disabled={disablePref}
-                    >
+                    </>
+                  ),
+                },
+                {
+                  value: 'wallet_first',
+                  label: getBillingPreferenceLabel('wallet_first', t),
+                },
+                {
+                  value: 'subscription_only',
+                  label: (
+                    <>
                       {getBillingPreferenceLabel('subscription_only', t)}
                       {disablePref ? ` (${t('No Active')})` : ''}
-                    </SelectItem>
-                    <SelectItem value='wallet_only'>
-                      {getBillingPreferenceLabel('wallet_only', t)}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-8 w-8'
-                onClick={handleRefresh}
-                disabled={refreshing}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
-                />
-              </Button>
-            </div>
-          </div>
-
-          {disablePref && isSubPref && (
-            <p className='text-muted-foreground mt-2 text-xs'>
-              {t(
-                'Preference saved as {{pref}}, but no active subscription. Wallet will be used automatically.',
+                    </>
+                  ),
+                },
                 {
-                  pref:
-                    billingPreference === 'subscription_only'
-                      ? t('Subscription Only')
-                      : t('Subscription First'),
-                }
-              )}
-            </p>
-          )}
+                  value: 'wallet_only',
+                  label: getBillingPreferenceLabel('wallet_only', t),
+                },
+              ]}
+              value={displayPref}
+              onValueChange={(v) => v !== null && handlePreferenceChange(v)}
+            >
+              <SelectTrigger className='h-8 flex-1 text-xs sm:w-[140px] sm:flex-none'>
+                <SelectValue>
+                  {getBillingPreferenceLabel(displayPref, t)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                <SelectGroup>
+                  <SelectItem value='subscription_first' disabled={disablePref}>
+                    {getBillingPreferenceLabel('subscription_first', t)}
+                    {disablePref ? ` (${t('No Active')})` : ''}
+                  </SelectItem>
+                  <SelectItem value='wallet_first'>
+                    {getBillingPreferenceLabel('wallet_first', t)}
+                  </SelectItem>
+                  <SelectItem value='subscription_only' disabled={disablePref}>
+                    {getBillingPreferenceLabel('subscription_only', t)}
+                    {disablePref ? ` (${t('No Active')})` : ''}
+                  </SelectItem>
+                  <SelectItem value='wallet_only'>
+                    {getBillingPreferenceLabel('wallet_only', t)}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-8 w-8'
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+              />
+            </Button>
+          </div>
+        </div>
 
-          {hasAny && (
-            <>
-              <Separator className='my-3' />
-              <div className='max-h-64 space-y-3 overflow-y-auto pr-1'>
-                {allSubscriptions.map((sub) => {
-                  const subscription = sub.subscription
-                  const totalAmount = Number(subscription?.amount_total || 0)
-                  const usedAmount = Number(subscription?.amount_used || 0)
-                  const remainAmount =
-                    totalAmount > 0 ? Math.max(0, totalAmount - usedAmount) : 0
-                  const planTitle =
-                    planTitleMap.get(subscription?.plan_id) || ''
-                  const remainDays = getRemainingDays(sub)
-                  const usagePercent = getUsagePercent(sub)
-                  const now = Date.now() / 1000
-                  const isExpired = (subscription?.end_time || 0) < now
-                  const isCancelled = subscription?.status === 'cancelled'
-                  const isActive =
-                    subscription?.status === 'active' && !isExpired
-                  const nextResetTime = subscription?.next_reset_time ?? 0
-                  let statusBadge = (
+        {disablePref && isSubPref && (
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {t(
+              'Preference saved as {{pref}}, but no active subscription. Wallet will be used automatically.',
+              {
+                pref:
+                  billingPreference === 'subscription_only'
+                    ? t('Subscription Only')
+                    : t('Subscription First'),
+              }
+            )}
+          </p>
+        )}
+
+        {hasAny && (
+          <>
+            <Separator className='my-3' />
+            <div className='max-h-64 space-y-3 overflow-y-auto pr-1'>
+              {allSubscriptions.map((sub) => {
+                const subscription = sub.subscription
+                const totalAmount = Number(subscription?.amount_total || 0)
+                const usedAmount = Number(subscription?.amount_used || 0)
+                const remainAmount =
+                  totalAmount > 0 ? Math.max(0, totalAmount - usedAmount) : 0
+                const planTitle = planTitleMap.get(subscription?.plan_id) || ''
+                const remainDays = getRemainingDays(sub)
+                const usagePercent = getUsagePercent(sub)
+                const now = Date.now() / 1000
+                const isExpired = (subscription?.end_time || 0) < now
+                const isCancelled = subscription?.status === 'cancelled'
+                const isActive =
+                  subscription?.status === 'active' && !isExpired
+                const nextResetTime = subscription?.next_reset_time ?? 0
+                let statusBadge = (
+                  <StatusBadge
+                    label={t('Expired')}
+                    variant='neutral'
+                    copyable={false}
+                  />
+                )
+                if (isActive) {
+                  statusBadge = (
                     <StatusBadge
-                      label={t('Expired')}
+                      label={t('Active')}
+                      variant='success'
+                      copyable={false}
+                    />
+                  )
+                } else if (isCancelled) {
+                  statusBadge = (
+                    <StatusBadge
+                      label={t('Cancelled')}
                       variant='neutral'
                       copyable={false}
                     />
                   )
-                  if (isActive) {
-                    statusBadge = (
-                      <StatusBadge
-                        label={t('Active')}
-                        variant='success'
-                        copyable={false}
-                      />
-                    )
-                  } else if (isCancelled) {
-                    statusBadge = (
-                      <StatusBadge
-                        label={t('Cancelled')}
-                        variant='neutral'
-                        copyable={false}
-                      />
-                    )
-                  }
+                }
 
-                  let endTimeLabel = t('Expired at')
-                  if (isActive) {
-                    endTimeLabel = t('Until')
-                  } else if (isCancelled) {
-                    endTimeLabel = t('Cancelled at')
-                  }
+                let endTimeLabel = t('Expired at')
+                if (isActive) {
+                  endTimeLabel = t('Until')
+                } else if (isCancelled) {
+                  endTimeLabel = t('Cancelled at')
+                }
 
-                  return (
-                    <div
-                      key={subscription?.id}
-                      className='bg-background rounded-md border p-3 text-xs'
-                    >
-                      <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-medium'>
-                            {planTitle
-                              ? `${planTitle} · ${t('Subscription')} #${subscription?.id}`
-                              : `${t('Subscription')} #${subscription?.id}`}
-                          </span>
-                          {statusBadge}
-                        </div>
-                        {isActive && (
-                          <span className='text-muted-foreground'>
-                            {t('{{count}} days remaining', {
-                              count: remainDays,
-                            })}
-                          </span>
-                        )}
+                return (
+                  <div
+                    key={subscription?.id}
+                    className='bg-background rounded-md border p-3 text-xs'
+                  >
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium'>
+                          {planTitle
+                            ? `${planTitle} · ${t('Subscription')} #${subscription?.id}`
+                            : `${t('Subscription')} #${subscription?.id}`}
+                        </span>
+                        {statusBadge}
                       </div>
-                      <div className='text-muted-foreground mt-1.5'>
-                        {endTimeLabel}{' '}
-                        {new Date(
-                          (subscription?.end_time || 0) * 1000
-                        ).toLocaleString()}
-                      </div>
-                      {isActive && nextResetTime > 0 && (
-                        <div className='text-muted-foreground mt-1'>
-                          {t('Next reset')}:{' '}
-                          {new Date(nextResetTime * 1000).toLocaleString()}
-                        </div>
+                      {isActive && (
+                        <span className='text-muted-foreground'>
+                          {t('{{count}} days remaining', {
+                            count: remainDays,
+                          })}
+                        </span>
                       )}
+                    </div>
+                    <div className='text-muted-foreground mt-1.5'>
+                      {endTimeLabel}{' '}
+                      {new Date(
+                        (subscription?.end_time || 0) * 1000
+                      ).toLocaleString()}
+                    </div>
+                    {isActive && nextResetTime > 0 && (
                       <div className='text-muted-foreground mt-1'>
-                        {t('Total Quota')}:{' '}
-                        {totalAmount > 0 ? (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={<span className='cursor-help' />}
-                            >
-                              {formatQuota(usedAmount)}/
-                              {formatQuota(totalAmount)} · {t('Remaining')}{' '}
-                              {formatQuota(remainAmount)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {t('Raw Quota')}: {usedAmount}/{totalAmount} ·{' '}
-                              {t('Remaining')} {remainAmount}
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          t('Unlimited')
-                        )}
-                        {totalAmount > 0 && (
-                          <span className='ml-2'>
-                            {t('Used')} {usagePercent}%
-                          </span>
-                        )}
+                        {t('Next reset')}:{' '}
+                        {new Date(nextResetTime * 1000).toLocaleString()}
                       </div>
-                      {totalAmount > 0 && isActive && (
-                        <Progress value={usagePercent} className='mt-2 h-1.5' />
-                      )}
-                      {isActive &&
-                        sub?.sub_quota_usage &&
-                        sub.sub_quota_usage.length > 0 && (
-                          <SubQuotaUsageList usages={sub.sub_quota_usage} />
-                        )}
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )}
-
-          {!hasAny && (
-            <p className='text-muted-foreground mt-2 text-xs'>
-              {t('Subscribe to a plan for model access')}
-            </p>
-          )}
-        </div>
-
-        {/* Available plans grid */}
-        {plans.length > 0 ? (
-          <div className='grid grid-cols-1 gap-3 2xl:grid-cols-2 2xl:gap-4'>
-            {plans.map((p, index) => {
-              const plan = p?.plan
-              if (!plan) return null
-              const totalAmount = Number(plan.total_amount || 0)
-              const isPopular = index === 0 && plans.length > 1
-              const limit = Number(plan.max_purchase_per_user || 0)
-              const count = planPurchaseCountMap.get(plan.id) || 0
-              const reached = limit > 0 && count >= limit
-
-              const benefits = [
-                `${t('Validity Period')}: ${formatDuration(plan, t)}`,
-                formatResetPeriod(plan, t) !== t('No Reset')
-                  ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
-                  : null,
-                totalAmount > 0
-                  ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
-                  : `${t('Total Quota')}: ${t('Unlimited')}`,
-                limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
-                plan.upgrade_group
-                  ? `${t('Upgrade Group')}: ${plan.upgrade_group}`
-                  : null,
-              ].filter(Boolean) as string[]
-
-              return (
-                <Card
-                  key={plan.id}
-                  data-card-hover='false'
-                  className={cn(isPopular && 'border-primary/70 shadow-sm')}
-                >
-                  <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
-                    <div className='mb-2 flex items-start justify-between gap-3'>
-                      <div className='min-w-0'>
-                        <h4 className='truncate font-semibold'>
-                          {plan.title || t('Subscription Plans')}
-                        </h4>
-                        {plan.subtitle && (
-                          <p className='text-muted-foreground truncate text-xs'>
-                            {plan.subtitle}
-                          </p>
-                        )}
-                      </div>
-                      {isPopular && (
-                        <StatusBadge
-                          variant='info'
-                          copyable={false}
-                          className='shrink-0'
-                        >
-                          <Sparkles className='h-3 w-3' />
-                          {t('Recommended')}
-                        </StatusBadge>
-                      )}
-                    </div>
-
-                    <div className='py-2'>
-                      <span className='text-primary text-2xl font-bold'>
-                        {formatPlanPrice(Number(plan.price_amount || 0), plan.currency)}
-                      </span>
-                    </div>
-
-                    <div className='flex-1 space-y-1.5 pb-3'>
-                      {benefits.map((label) => (
-                        <div
-                          key={label}
-                          className='text-muted-foreground flex items-center gap-2 text-xs'
-                        >
-                          <Check className='text-primary h-3 w-3 shrink-0' />
-                          <span>{label}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Separator className='mb-3' />
-
-                    {reached ? (
-                      <Tooltip>
-                        <TooltipTrigger render={<div />}>
-                          <Button variant='outline' className='w-full' disabled>
-                            {t('Limit Reached')}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t('Purchase limit reached')} ({count}/{limit})
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : catfkLinkForPrice(Number(plan.price_amount || 0)) ? (
-                      <Button
-                        variant='outline'
-                        className='w-full'
-                        disabled={checkoutPlanId !== null}
-                        onClick={() => handleCatfkCheckout(plan)}
-                      >
-                        {checkoutPlanId === plan.id
-                          ? t('Waiting for payment...')
-                          : t('Buy Now')}
-                      </Button>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger render={<div />}>
-                          <Button variant='outline' className='w-full' disabled>
-                            {t('Coming Soon')}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t('This plan is not available for purchase yet.')}
-                        </TooltipContent>
-                      </Tooltip>
                     )}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        ) : (
-          <p className='text-muted-foreground py-4 text-center text-sm'>
-            {t('No plans available')}
-          </p>
+                    <div className='text-muted-foreground mt-1'>
+                      {t('Total Quota')}:{' '}
+                      {totalAmount > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={<span className='cursor-help' />}
+                          >
+                            {formatQuota(usedAmount)}/
+                            {formatQuota(totalAmount)} · {t('Remaining')}{' '}
+                            {formatQuota(remainAmount)}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t('Raw Quota')}: {usedAmount}/{totalAmount} ·{' '}
+                            {t('Remaining')} {remainAmount}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        t('Unlimited')
+                      )}
+                      {totalAmount > 0 && (
+                        <span className='ml-2'>
+                          {t('Used')} {usagePercent}%
+                        </span>
+                      )}
+                    </div>
+                    {totalAmount > 0 && isActive && (
+                      <Progress value={usagePercent} className='mt-2 h-1.5' />
+                    )}
+                    {isActive &&
+                      sub?.sub_quota_usage &&
+                      sub.sub_quota_usage.length > 0 && (
+                        <SubQuotaUsageList usages={sub.sub_quota_usage} />
+                      )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
-        {plans.length > 0 && (
-          <p className='text-muted-foreground mt-3 text-xs'>
-            {t(
-              'Purchase flow: pay on CatFK, receive a redemption code via your contact, then redeem it in Wallet → Redeem Code.'
-            )}
-          </p>
-        )}
-      </TitledCard>
 
-    </>
+        {!hasAny && (
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {t('Subscribe to a plan for model access')}
+          </p>
+        )}
+      </div>
+
+      {/* 可购买套餐 */}
+      {plans.length > 0 ? (
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4'>
+          {plans.map((p) => {
+            const plan = p?.plan
+            if (!plan) return null
+            const totalAmount = Number(plan.total_amount || 0)
+            const isPopular = plan.title === 'Pro x1'
+            const limit = Number(plan.max_purchase_per_user || 0)
+            const count = planPurchaseCountMap.get(plan.id) || 0
+            const reached = limit > 0 && count >= limit
+            const purchasable = Boolean(
+              catfkGoodsKeyForPrice(Number(plan.price_amount || 0))
+            )
+            const subLimits = parseSubQuotaLimits(plan.sub_quota_limits)
+
+            const benefits = [
+              `${t('Validity Period')}: ${formatDuration(plan, t)}`,
+              formatResetPeriod(plan, t) !== t('No Reset')
+                ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
+                : null,
+              totalAmount > 0
+                ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
+                : `${t('Total Quota')}: ${t('Unlimited')}`,
+              ...subLimits.map(
+                (s) =>
+                  `${s.name || t('Sub Limit')}: $${Number(s.limit_usd || 0).toFixed(0)}`
+              ),
+              limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
+            ].filter(Boolean) as string[]
+
+            const renderPayButton = (
+              pay: CatfkPayMethod,
+              label: string,
+              variant: 'default' | 'outline'
+            ) => {
+              const key = `${plan.id}:${pay}`
+              const busy = checkoutKey === key
+              return (
+                <Button
+                  variant={variant}
+                  size='sm'
+                  className='flex-1'
+                  disabled={checkoutKey !== null}
+                  onClick={() => handleCatfkCheckout(plan, pay)}
+                >
+                  {busy ? t('Waiting for payment...') : label}
+                </Button>
+              )
+            }
+
+            return (
+              <Card
+                key={plan.id}
+                data-card-hover='false'
+                className={cn(isPopular && 'border-primary/70 shadow-sm')}
+              >
+                <CardContent className='flex h-full flex-col p-3.5 sm:p-4'>
+                  <div className='mb-2 flex items-start justify-between gap-3'>
+                    <div className='min-w-0'>
+                      <h4 className='truncate font-semibold'>
+                        {plan.title || t('Subscription Plans')}
+                      </h4>
+                      {plan.subtitle && (
+                        <p className='text-muted-foreground truncate text-xs'>
+                          {plan.subtitle}
+                        </p>
+                      )}
+                    </div>
+                    {isPopular && (
+                      <StatusBadge
+                        variant='info'
+                        copyable={false}
+                        className='shrink-0'
+                      >
+                        <Sparkles className='h-3 w-3' />
+                        {t('Recommended')}
+                      </StatusBadge>
+                    )}
+                  </div>
+
+                  <div className='flex items-baseline gap-1 py-2'>
+                    <span className='text-primary text-2xl font-bold'>
+                      {formatPlanPrice(
+                        Number(plan.price_amount || 0),
+                        plan.currency
+                      )}
+                    </span>
+                    <span className='text-muted-foreground text-xs'>
+                      /{t('month')}
+                    </span>
+                  </div>
+
+                  <div className='flex-1 space-y-1.5 pb-3'>
+                    {benefits.map((label) => (
+                      <div
+                        key={label}
+                        className='text-muted-foreground flex items-center gap-2 text-xs'
+                      >
+                        <Check className='text-primary h-3 w-3 shrink-0' />
+                        <span>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator className='mb-3' />
+
+                  {reached ? (
+                    <Tooltip>
+                      <TooltipTrigger render={<div />}>
+                        <Button variant='outline' className='w-full' disabled>
+                          {t('Limit Reached')}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('Purchase limit reached')} ({count}/{limit})
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : purchasable ? (
+                    <div className='flex gap-2'>
+                      {renderPayButton('alipay', t('Alipay'), 'default')}
+                      {renderPayButton('wechat', t('WeChat Pay'), 'outline')}
+                    </div>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger render={<div />}>
+                        <Button variant='outline' className='w-full' disabled>
+                          {t('Coming Soon')}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('This plan is not available for purchase yet.')}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <p className='text-muted-foreground py-4 text-center text-sm'>
+          {t('No plans available')}
+        </p>
+      )}
+      {plans.length > 0 && (
+        <p className='text-muted-foreground mt-3 text-xs'>
+          {t(
+            'After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.'
+          )}
+        </p>
+      )}
+    </TitledCard>
   )
 }

@@ -2,13 +2,14 @@
 """catfk-checkout.py — CatFK anonymous checkout bridge for new-api.
 
 Flow: user clicks Buy -> POST /checkout (with their new-api JWT) -> we create a
-CatFK order and return the Alipay pay URL -> user pays -> we detect payment via
-Pay/query, pull the delivered card secrets, and auto-grant in new-api
-(subscription via admin bind, quota via admin manage add_quota). Fully
-server-side: the user never has to paste a code.
+CatFK order and return the pay URL (Alipay or WeChat, buyer's choice) -> user
+pays -> we detect payment via Pay/query, pull the delivered card secrets, and
+auto-grant in new-api (subscription via admin bind, quota via admin manage
+add_quota). Fully server-side: the user never has to paste a code.
 
 Endpoints (CORS-open for local dev):
-  POST /checkout        {"jwt": "...", "goods_key": "vk898s", "contact": "optional"}
+  POST /checkout        {"jwt": "...", "goods_key": "vk898s", "contact": "optional",
+                         "pay": "alipay"|"wechat" (default alipay)}
                         -> {"trade_no": "...", "payurl": "..."}
   GET  /checkout/status?trade_no=...
                         -> {"status": "pending"|"paid"|"granted"|"error", ...}
@@ -44,6 +45,7 @@ GOODS = {
     "r07y8g": ("plan", 1),   # Pro x1 ¥199
     "uhwx0f": ("plan", 4),   # Pro x2 ¥329
     "bx9j3s": ("plan", 5),   # Pro x3 ¥499
+    "snae3x": ("plan", 6),   # Pro x4 ¥749
     "cbcg11": ("quota", 10 * QUOTA_PER_USD),   # ¥5 测试档
     "r5ufqm": ("quota", 40 * QUOTA_PER_USD),
     "ot5e6z": ("quota", 100 * QUOTA_PER_USD),
@@ -91,6 +93,39 @@ def catfk(*args):
         return json.loads(r.stdout)
     except json.JSONDecodeError:
         return {"_raw": r.stdout, "_err": r.stderr}
+
+
+# Merchant payment channels (CatFK shopApi/Shop/getUserChannel, token=YBNBTPYY).
+# Channel ids are merchant-specific; resolved dynamically with a static fallback.
+CHANNEL_CODE_BY_PAY = {"alipay": "AlipayPc", "wechat": "WeixinNative"}
+CHANNEL_ID_FALLBACK = {"alipay": 1, "wechat": 4}
+_channel_cache = {"at": 0, "map": {}}
+MERCHANT_TOKEN = "YBNBTPYY"
+
+
+def pay_channel_id(pay):
+    """Map 'alipay'/'wechat' to the merchant's CatFK channel id, refreshed hourly."""
+    if pay not in CHANNEL_CODE_BY_PAY:
+        raise ValueError(f"unknown pay method {pay!r} (want alipay|wechat)")
+    if time.time() - _channel_cache["at"] > 3600 or not _channel_cache["map"]:
+        try:
+            req = urllib.request.Request(
+                "https://catfk.com/shopApi/Shop/getUserChannel",
+                data=f"token={MERCHANT_TOKEN}".encode(),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                method="POST")
+            resp = json.loads(urllib.request.urlopen(req, timeout=15).read().decode())
+            channels = {}
+            for ch in resp.get("data") or []:
+                if ch.get("status") == 1:
+                    channels[ch.get("code")] = ch.get("id")
+            if channels:
+                _channel_cache.update({"at": time.time(), "map": channels})
+        except Exception as e:
+            print(f"[checkout] channel lookup failed, using fallback: {e}", flush=True)
+    code = CHANNEL_CODE_BY_PAY[pay]
+    cid = _channel_cache["map"].get(code) or CHANNEL_ID_FALLBACK[pay]
+    return int(cid)
 
 
 def newapi_user_from_jwt(jwt):
@@ -234,7 +269,9 @@ class Handler(BaseHTTPRequestHandler):
             user_id, user_email = newapi_user_from_jwt(jwt)
             kind, value = GOODS[goods_key]
             contact = req.get("contact") or user_email
-            r = catfk("order", "create", goods_key, "--qty", "1", "--channel", "1",
+            pay = (req.get("pay") or "alipay").lower()
+            channel = pay_channel_id(pay)
+            r = catfk("order", "create", goods_key, "--qty", "1", "--channel", str(channel),
                       "--contact", contact, "--confirm")
             trade_no, payurl = r.get("trade_no"), r.get("payurl")
             if not trade_no or not payurl:
@@ -242,9 +279,9 @@ class Handler(BaseHTTPRequestHandler):
             orders = load_orders()
             orders[trade_no] = {"trade_no": trade_no, "payurl": payurl, "user_id": user_id,
                                 "goods_key": goods_key, "kind": kind, "value": value,
-                                "granted": False, "created_at": int(time.time())}
+                                "pay": pay, "granted": False, "created_at": int(time.time())}
             save_orders(orders)
-            print(f"[checkout] created {trade_no} goods={goods_key} user={user_id}", flush=True)
+            print(f"[checkout] created {trade_no} goods={goods_key} user={user_id} pay={pay}(ch{channel})", flush=True)
             self._json(200, {"trade_no": trade_no, "payurl": payurl})
         except ValueError as e:
             self._json(401, {"error": str(e)})

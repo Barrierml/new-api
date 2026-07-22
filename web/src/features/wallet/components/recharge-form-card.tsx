@@ -21,10 +21,11 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { CATFK_TOPUP_PRICES } from '@/features/subscriptions/lib/catfk-plans'
 import {
-  CATFK_TOPUP_PRICES,
-} from '@/features/subscriptions/lib/catfk-plans'
-import { runCatfkCheckout } from '@/features/subscriptions/lib/catfk-checkout'
+  runCatfkCheckout,
+  type CatfkPayMethod,
+} from '@/features/subscriptions/lib/catfk-checkout'
 import { useAuthStore } from '@/stores/auth-store'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import {
@@ -88,6 +89,7 @@ interface RechargeFormCardProps {
   onWaffoMethodSelect?: (method: WaffoPayMethod, index: number) => void
   enableWaffoPancakeTopup?: boolean
   onCheckoutSuccess?: () => void
+  userQuota?: number
 }
 
 export function RechargeFormCard({
@@ -119,32 +121,41 @@ export function RechargeFormCard({
   onWaffoMethodSelect,
   enableWaffoPancakeTopup,
   onCheckoutSuccess,
+  userQuota,
 }: RechargeFormCardProps) {
   const { t } = useTranslation()
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
-  const [checkoutTier, setCheckoutTier] = useState<number | null>(null)
+  const [selectedTier, setSelectedTier] = useState<number>(
+    CATFK_TOPUP_PRICES[0]
+  )
+  // `${price}:${pay}` 标记正在结算的档位 + 支付方式
+  const [checkoutKey, setCheckoutKey] = useState<string | null>(null)
   const accessToken = useAuthStore((s) => s.auth.accessToken)
 
-  const handleTierCheckout = async (price: number) => {
-    if (checkoutTier !== null) return
+  const handleTierCheckout = async (price: number, pay: CatfkPayMethod) => {
+    if (checkoutKey !== null) return
     if (!accessToken) {
       toast.error(t('Please log in first'))
       return
     }
-    setCheckoutTier(price)
+    setCheckoutKey(`${price}:${pay}`)
     try {
       toast.info(t('Opening payment page, please complete payment'))
-      const status = await runCatfkCheckout({ price, jwt: accessToken })
+      const status = await runCatfkCheckout({ price, jwt: accessToken, pay })
       if (status === 'granted') {
         toast.success(t('Payment received, quota credited!'))
         onCheckoutSuccess?.()
       } else {
-        toast.warning(t('Payment not detected yet, quota will be credited automatically once confirmed'))
+        toast.warning(
+          t(
+            'Payment not detected yet, quota will be credited automatically once confirmed'
+          )
+        )
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('Checkout failed'))
     } finally {
-      setCheckoutTier(null)
+      setCheckoutKey(null)
     }
   }
 
@@ -226,8 +237,8 @@ export function RechargeFormCard({
 
   return (
     <TitledCard
-      title={t('Add Funds')}
-      description={t('Choose an amount and payment method')}
+      title={t('Balance Top-Up')}
+      description={t('Pay-as-you-go quota, ¥1 = $2 quota, never expires')}
       icon={<WalletCards className='h-4 w-4' />}
       iconTone='success'
       disableHoverEffect
@@ -246,8 +257,77 @@ export function RechargeFormCard({
       }
       contentClassName='space-y-4 sm:space-y-6'
     >
+      {typeof userQuota === 'number' && (
+        <div className='flex items-center justify-between rounded-lg border px-3 py-2 text-sm'>
+          <span className='text-muted-foreground'>{t('Current balance')}</span>
+          <span className='font-semibold'>{formatQuota(userQuota)}</span>
+        </div>
+      )}
+
+      {/* 云猫充值档位(在线充值未启用时的主路径) */}
+      {!hasAnyTopup && (
+        <div className='space-y-4 sm:space-y-5'>
+          <div className='space-y-2.5 sm:space-y-3'>
+            <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+              {t('Select amount')}
+            </Label>
+            <div className='grid grid-cols-2 gap-1.5 sm:gap-3 md:grid-cols-4'>
+              {CATFK_TOPUP_PRICES.map((price) => (
+                <Button
+                  key={price}
+                  variant='outline'
+                  className={cn(
+                    'flex min-h-16 flex-col items-start rounded-lg px-3 py-2.5 text-left sm:min-h-[72px] sm:p-4',
+                    selectedTier === price
+                      ? 'border-foreground bg-foreground/5 dark:border-foreground dark:bg-foreground/10'
+                      : 'border-muted'
+                  )}
+                  onClick={() => setSelectedTier(price)}
+                >
+                  <div className='text-base font-semibold sm:text-lg'>
+                    ¥{price}
+                  </div>
+                  <div className='text-muted-foreground mt-1.5 w-full text-xs sm:mt-2'>
+                    ${price * 2} {t('quota')}
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className='flex flex-col gap-2 sm:flex-row'>
+            {(
+              [
+                ['alipay', t('Pay with Alipay'), 'default'],
+                ['wechat', t('Pay with WeChat'), 'outline'],
+              ] as const
+            ).map(([pay, label, variant]) => {
+              const key = `${selectedTier}:${pay}`
+              const busy = checkoutKey === key
+              return (
+                <Button
+                  key={pay}
+                  variant={variant}
+                  className='flex-1'
+                  disabled={checkoutKey !== null}
+                  onClick={() => handleTierCheckout(selectedTier, pay)}
+                >
+                  {busy && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                  {busy ? t('Waiting for payment...') : label}
+                </Button>
+              )
+            })}
+          </div>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.'
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Online Topup Section */}
-      {hasAnyTopup ? (
+      {hasAnyTopup && (
         <div className='space-y-4 sm:space-y-6'>
           {hasConfigurableTopup && (
             <>
@@ -504,14 +584,6 @@ export function RechargeFormCard({
             </>
           )}
         </div>
-      ) : (
-        <Alert>
-          <AlertDescription>
-            {t(
-              'Online topup is not enabled. Please use redemption code or contact administrator.'
-            )}
-          </AlertDescription>
-        </Alert>
       )}
 
       {/* Creem Products Section */}
@@ -576,23 +648,6 @@ export function RechargeFormCard({
               </a>
             </p>
           )}
-          <p className='text-muted-foreground text-xs'>
-            {t('Buy a code on CatFK')}:{' '}
-            {CATFK_TOPUP_PRICES.map((price, i) => (
-              <span key={price}>
-                {i > 0 && ' · '}
-                <button
-                  type='button'
-                  disabled={checkoutTier !== null}
-                  onClick={() => handleTierCheckout(price)}
-                  className='text-primary underline-offset-4 hover:underline disabled:opacity-50'
-                >
-                  ¥{price}
-                  {checkoutTier === price ? ' …' : ''}
-                </button>
-              </span>
-            ))}
-          </p>
         </div>
       ) : (
         <Alert className='border-t'>

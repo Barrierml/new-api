@@ -8,7 +8,7 @@
 export const CATFK_PLATFORM = '云猫寄售'
 
 // --- Pro 月付 ---
-// 月付套餐价格与云猫在售档位一致(¥59/119/199/329/499)。
+// 月付套餐价格与云猫在售档位一致(¥59/119/199/329/499/749)。
 // 若云猫 goods 上下架变动,同步更新此表。
 export const CATFK_MONTHLY_LINK_BY_PRICE: Record<number, string> = {
   59: 'https://catfk.com/item/vk898s', // Mini
@@ -16,9 +16,10 @@ export const CATFK_MONTHLY_LINK_BY_PRICE: Record<number, string> = {
   199: 'https://catfk.com/item/r07y8g', // Pro x1
   329: 'https://catfk.com/item/uhwx0f', // Pro x2
   499: 'https://catfk.com/item/bx9j3s', // Pro x3
+  749: 'https://catfk.com/item/snae3x', // Pro x4
 }
 
-// 按月付套餐价格查云猫购买页;未命中返回 undefined(如 ¥749 Pro x4 暂无商品)。
+// 按月付套餐价格查云猫购买页;未命中返回 undefined。
 export function catfkLinkForPrice(price: number): string | undefined {
   return CATFK_MONTHLY_LINK_BY_PRICE[Math.round(price)]
 }
@@ -30,6 +31,7 @@ const CATFK_GOODS_KEY_BY_PRICE: Record<number, string> = {
   199: 'r07y8g',
   329: 'uhwx0f',
   499: 'bx9j3s',
+  749: 'snae3x',
   20: 'r5ufqm',
   50: 'ot5e6z',
   100: 'jyq5ae',

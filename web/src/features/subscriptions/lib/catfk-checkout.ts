@@ -1,9 +1,11 @@
-// CatFK checkout 闭环:下单 → 支付宝链接 → 轮询 → 自动兑现。
+// CatFK checkout 闭环:下单 → 支付链接(支付宝/微信) → 轮询 → 自动兑现。
 // 后端桥接服务见 scripts/catfk-checkout.py(默认 :8390)。
 
 import { catfkGoodsKeyForPrice } from './catfk-plans'
 
 const CHECKOUT_BASE = 'http://localhost:8390'
+
+export type CatfkPayMethod = 'alipay' | 'wechat'
 
 export type CheckoutStart = {
   trade_no: string
@@ -19,12 +21,13 @@ export type CheckoutStatus =
 
 export async function startCheckout(
   goodsKey: string,
-  jwt: string
+  jwt: string,
+  pay: CatfkPayMethod = 'alipay'
 ): Promise<CheckoutStart> {
   const resp = await fetch(`${CHECKOUT_BASE}/checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jwt, goods_key: goodsKey }),
+    body: JSON.stringify({ jwt, goods_key: goodsKey, pay }),
   })
   const data = await resp.json()
   if (!resp.ok || data.error) {
@@ -51,6 +54,7 @@ export async function getCheckoutStatus(
 export async function runCatfkCheckout(options: {
   price: number
   jwt: string
+  pay?: CatfkPayMethod
   onStatus?: (status: CheckoutStatus) => void
   pollIntervalMs?: number
   timeoutMs?: number
@@ -58,7 +62,11 @@ export async function runCatfkCheckout(options: {
   const goodsKey = catfkGoodsKeyForPrice(options.price)
   if (!goodsKey) throw new Error(`no catfk goods for price ${options.price}`)
 
-  const { trade_no, payurl } = await startCheckout(goodsKey, options.jwt)
+  const { trade_no, payurl } = await startCheckout(
+    goodsKey,
+    options.jwt,
+    options.pay ?? 'alipay'
+  )
   window.open(payurl, '_blank', 'noopener,noreferrer')
 
   const interval = options.pollIntervalMs ?? 3000

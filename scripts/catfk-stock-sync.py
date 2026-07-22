@@ -36,6 +36,8 @@ GOODS = {
     "r07y8g": ("plan", 1),   # Pro x1 ¥199
     "uhwx0f": ("plan", 4),   # Pro x2 ¥329
     "bx9j3s": ("plan", 5),   # Pro x3 ¥499
+    "snae3x": ("plan", 6),   # Pro x4 ¥749
+    "cbcg11": ("quota", 10 * QUOTA_PER_USD),   # ¥5 测试档
     "r5ufqm": ("quota", 40 * QUOTA_PER_USD),   # ¥20 -> $40
     "ot5e6z": ("quota", 100 * QUOTA_PER_USD),  # ¥50 -> $100
     "jyq5ae": ("quota", 200 * QUOTA_PER_USD),  # ¥100 -> $200
