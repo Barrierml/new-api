@@ -28,6 +28,13 @@ import {
 } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import {
   Select,
@@ -161,6 +168,10 @@ export function SubscriptionPlansCard({
 
   // `${planId}:${pay}` 标记正在结算的套餐 + 支付方式
   const [checkoutKey, setCheckoutKey] = useState<string | null>(null)
+  // 当前打开购买弹窗的套餐
+  const [purchasePlan, setPurchasePlan] = useState<PlanRecord['plan'] | null>(
+    null
+  )
   const accessToken = useAuthStore((s) => s.auth.accessToken)
 
   const fetchPlans = useCallback(async () => {
@@ -224,6 +235,7 @@ export function SubscriptionPlansCard({
         })
         if (status === 'granted') {
           toast.success(t('Payment received, subscription activated!'))
+          setPurchasePlan(null)
           fetchSelfSubscription()
           onPurchaseSuccess?.()
         } else {
@@ -294,6 +306,39 @@ export function SubscriptionPlansCard({
     }
     return map
   }, [plans])
+
+  // 价格降序(高 → 低)
+  const sortedPlans = useMemo(
+    () =>
+      [...plans].sort(
+        (a, b) =>
+          Number(b?.plan?.price_amount || 0) - Number(a?.plan?.price_amount || 0)
+      ),
+    [plans]
+  )
+
+  const buildBenefits = useCallback(
+    (plan: NonNullable<PlanRecord['plan']>): string[] => {
+      const totalAmount = Number(plan.total_amount || 0)
+      const limit = Number(plan.max_purchase_per_user || 0)
+      const subLimits = parseSubQuotaLimits(plan.sub_quota_limits)
+      return [
+        `${t('Validity Period')}: ${formatDuration(plan, t)}`,
+        formatResetPeriod(plan, t) !== t('No Reset')
+          ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
+          : null,
+        totalAmount > 0
+          ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
+          : `${t('Total Quota')}: ${t('Unlimited')}`,
+        ...subLimits.map(
+          (s) =>
+            `${s.name || t('Sub Limit')}: $${Number(s.limit_usd || 0).toFixed(0)}`
+        ),
+        limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
+      ].filter(Boolean) as string[]
+    },
+    [t]
+  )
 
   const getRemainingDays = (sub: UserSubscriptionRecord) => {
     const endTime = sub?.subscription?.end_time || 0
@@ -588,13 +633,12 @@ export function SubscriptionPlansCard({
         )}
       </div>
 
-      {/* 可购买套餐 */}
-      {plans.length > 0 ? (
+      {/* 可购买套餐(价格降序) */}
+      {sortedPlans.length > 0 ? (
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:gap-4'>
-          {plans.map((p) => {
+          {sortedPlans.map((p) => {
             const plan = p?.plan
             if (!plan) return null
-            const totalAmount = Number(plan.total_amount || 0)
             const isPopular = plan.title === 'Pro x1'
             const limit = Number(plan.max_purchase_per_user || 0)
             const count = planPurchaseCountMap.get(plan.id) || 0
@@ -602,42 +646,7 @@ export function SubscriptionPlansCard({
             const purchasable = Boolean(
               catfkGoodsKeyForPrice(Number(plan.price_amount || 0))
             )
-            const subLimits = parseSubQuotaLimits(plan.sub_quota_limits)
-
-            const benefits = [
-              `${t('Validity Period')}: ${formatDuration(plan, t)}`,
-              formatResetPeriod(plan, t) !== t('No Reset')
-                ? `${t('Quota Reset')}: ${formatResetPeriod(plan, t)}`
-                : null,
-              totalAmount > 0
-                ? `${t('Total Quota')}: ${formatQuota(totalAmount)}`
-                : `${t('Total Quota')}: ${t('Unlimited')}`,
-              ...subLimits.map(
-                (s) =>
-                  `${s.name || t('Sub Limit')}: $${Number(s.limit_usd || 0).toFixed(0)}`
-              ),
-              limit > 0 ? `${t('Purchase Limit')}: ${limit}` : null,
-            ].filter(Boolean) as string[]
-
-            const renderPayButton = (
-              pay: CatfkPayMethod,
-              label: string,
-              variant: 'default' | 'outline'
-            ) => {
-              const key = `${plan.id}:${pay}`
-              const busy = checkoutKey === key
-              return (
-                <Button
-                  variant={variant}
-                  size='sm'
-                  className='flex-1'
-                  disabled={checkoutKey !== null}
-                  onClick={() => handleCatfkCheckout(plan, pay)}
-                >
-                  {busy ? t('Waiting for payment...') : label}
-                </Button>
-              )
-            }
+            const benefits = buildBenefits(plan)
 
             return (
               <Card
@@ -707,10 +716,12 @@ export function SubscriptionPlansCard({
                       </TooltipContent>
                     </Tooltip>
                   ) : purchasable ? (
-                    <div className='flex gap-2'>
-                      {renderPayButton('alipay', t('Alipay'), 'default')}
-                      {renderPayButton('wechat', t('WeChat Pay'), 'outline')}
-                    </div>
+                    <Button
+                      className='w-full'
+                      onClick={() => setPurchasePlan(plan)}
+                    >
+                      {t('Buy Now')}
+                    </Button>
                   ) : (
                     <Tooltip>
                       <TooltipTrigger render={<div />}>
@@ -740,6 +751,88 @@ export function SubscriptionPlansCard({
           )}
         </p>
       )}
+
+      {/* 购买弹窗:套餐介绍 + 支付方式选择 */}
+      <Dialog
+        open={purchasePlan !== null}
+        onOpenChange={(open) => {
+          if (!open && checkoutKey === null) setPurchasePlan(null)
+        }}
+      >
+        <DialogContent className='sm:max-w-md'>
+          {purchasePlan && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{purchasePlan.title}</DialogTitle>
+                {purchasePlan.subtitle && (
+                  <DialogDescription>
+                    {purchasePlan.subtitle}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+
+              <div className='flex items-baseline gap-1 py-1'>
+                <span className='text-primary text-3xl font-bold'>
+                  {formatPlanPrice(
+                    Number(purchasePlan.price_amount || 0),
+                    purchasePlan.currency
+                  )}
+                </span>
+                <span className='text-muted-foreground text-sm'>
+                  /{t('month')}
+                </span>
+              </div>
+
+              <div className='space-y-2 pb-2'>
+                {buildBenefits(purchasePlan).map((label) => (
+                  <div
+                    key={label}
+                    className='text-muted-foreground flex items-center gap-2 text-sm'
+                  >
+                    <Check className='text-primary h-3.5 w-3.5 shrink-0' />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className='space-y-2 pt-1'>
+                <div className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+                  {t('Payment Method')}
+                </div>
+                <div className='flex flex-col gap-2 sm:flex-row'>
+                  {(
+                    [
+                      ['alipay', t('Pay with Alipay'), 'default'],
+                      ['wechat', t('Pay with WeChat'), 'outline'],
+                    ] as const
+                  ).map(([pay, label, variant]) => {
+                    const key = `${purchasePlan.id}:${pay}`
+                    const busy = checkoutKey === key
+                    return (
+                      <Button
+                        key={pay}
+                        variant={variant}
+                        className='flex-1'
+                        disabled={checkoutKey !== null}
+                        onClick={() => handleCatfkCheckout(purchasePlan, pay)}
+                      >
+                        {busy ? t('Waiting for payment...') : label}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <p className='text-muted-foreground text-xs'>
+                  {t(
+                    'After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.'
+                  )}
+                </p>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </TitledCard>
   )
 }

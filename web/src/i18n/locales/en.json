@@ -5274,6 +5274,7 @@
     "Payment not detected yet, quota will be credited automatically once confirmed": "Payment not detected yet, quota will be credited automatically once confirmed",
     "After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.": "After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.",
     "After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.": "After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.",
-    "Minimum": "Minimum"
+    "Minimum": "Minimum",
+    "Buy Now": "Buy Now"
   }
 }
