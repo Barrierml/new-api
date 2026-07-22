@@ -750,9 +750,9 @@ export function OverviewDashboard() {
         </CardStaggerContainer>
       )}
 
-      <SubscriptionOverviewCard />
-
       <SummaryCards />
+
+      <SubscriptionOverviewCard />
 
       {showContentPanels && (
         <CardStaggerContainer
