@@ -1,0 +1,27 @@
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_35e34cb720b98a::t_05199d97342aa9 31-37,171-174,238,310-342,636-637,639,649,719-724,754-835
+web/src/i18n/locales/en.json
+  s_35e34cb720b98a::t_82c851b18118e5 5277-5278
+web/src/i18n/locales/zh-TW.json
+  s_35e34cb720b98a::t_173db1a6b560bd 5277-5278
+web/src/i18n/locales/zh.json
+  s_35e34cb720b98a::t_057ad13d31e447 5277-5278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e19ab2b572cbce59efb0edea309fced150fa0626",
+  "prompts": {},
+  "sessions": {
+    "s_35e34cb720b98a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_35e34cb720b98a",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
