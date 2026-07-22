@@ -5275,6 +5275,8 @@
     "After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.": "After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.",
     "After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.": "After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.",
     "Minimum": "Minimum",
-    "Buy Now": "Buy Now"
+    "Buy Now": "Buy Now",
+    "View Plans": "View Plans",
+    "No active plan. Subscribe for weekly quota and better rates.": "No active plan. Subscribe for weekly quota and better rates."
   }
 }

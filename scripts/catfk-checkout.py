@@ -157,8 +157,10 @@ def grant(order):
     kind, value = order["kind"], order["value"]
     uid = order["user_id"]
     if kind == "plan":
+        # mode=renew: extends the existing active row's end time when the user
+        # already has this plan (monthly renewal), falls back to create when not.
         r = http_json(f"{NEW_API_BASE}/api/subscription/admin/bind",
-                      {"user_id": uid, "plan_id": value}, bearer=admin_token())
+                      {"user_id": uid, "plan_id": value, "mode": "renew"}, bearer=admin_token())
     else:
         r = http_json(f"{NEW_API_BASE}/api/user/manage",
                       {"id": uid, "action": "add_quota", "mode": "add", "value": value},

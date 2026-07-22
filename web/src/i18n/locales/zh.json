@@ -5275,6 +5275,8 @@
     "After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.": "支付成功后套餐自动开通,无需兑换码。支付由云猫寄售提供。",
     "After payment succeeds, quota is credited automatically — no redemption code needed. Payments are processed by CatFK.": "支付成功后额度自动到账,无需兑换码。支付由云猫寄售提供。",
     "Minimum": "最低",
-    "Buy Now": "立即购买"
+    "Buy Now": "立即购买",
+    "View Plans": "查看套餐",
+    "No active plan. Subscribe for weekly quota and better rates.": "尚未开通套餐,订阅后享每周额度与更优倍率。"
   }
 }
