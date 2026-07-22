@@ -1,0 +1,29 @@
+web/src/features/dashboard/components/overview/subscription-overview-card.tsx
+  s_a466a7501f97a0::t_094e3f06da9273 179-181
+web/src/features/wallet/components/subscription-plans-card.tsx
+  s_a466a7501f97a0::t_4d60d185096295 331-332,590
+web/src/i18n/locales/en.json
+  s_a466a7501f97a0::t_cac8fd293f616b 5280-5281
+web/src/i18n/locales/zh-TW.json
+  s_a466a7501f97a0::t_1c7b8db88f5da0 5280-5281
+web/src/i18n/locales/zh.json
+  s_a466a7501f97a0::t_87a98686e7c18b 5280-5281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "88cb0f5a797842ac17eda81e87fce5b7f5b9eba9",
+  "prompts": {},
+  "sessions": {
+    "s_a466a7501f97a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a466a7501f97a0",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
