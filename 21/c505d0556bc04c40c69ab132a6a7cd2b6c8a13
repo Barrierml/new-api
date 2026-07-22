@@ -1,0 +1,31 @@
+scripts/catfk-checkout.py
+  s_e5ff86bbdc1def::t_45984589e086af 160-161,163
+web/src/features/dashboard/components/overview/overview-dashboard.tsx
+  s_e5ff86bbdc1def::t_1ec82d26e9d58a 67,753-754
+web/src/features/dashboard/components/overview/subscription-overview-card.tsx
+  s_e5ff86bbdc1def::t_8ef45547101a4e 1-197
+web/src/i18n/locales/en.json
+  s_e5ff86bbdc1def::t_faae08937be809 5278-5280
+web/src/i18n/locales/zh-TW.json
+  s_e5ff86bbdc1def::t_9d9043b40c1409 5278-5280
+web/src/i18n/locales/zh.json
+  s_e5ff86bbdc1def::t_6e2573f9284cd3 5278-5280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "21c505d0556bc04c40c69ab132a6a7cd2b6c8a13",
+  "prompts": {},
+  "sessions": {
+    "s_e5ff86bbdc1def": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_e5ff86bbdc1def",
+        "model": "unknown"
+      },
+      "human_author": "chenhaichao.eeez <chenhaichao.eeez@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
