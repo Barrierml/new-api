@@ -52,7 +52,8 @@ jobs:
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             T="${{ github.event.inputs.tag }}"
           else
-            T="tako-$(echo '${{ github.sha }}' | cut -c1-7)"
+            # UTC 时间戳 tag,一眼能看出新旧(可排序):tako-20260723-0503
+            T="tako-$(date -u +%Y%m%d-%H%M)"
           fi
           echo "tag=$T" >> "$GITHUB_OUTPUT"
 
