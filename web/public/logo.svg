@@ -2,8 +2,8 @@
   <title id="title">Tako</title>
   <desc id="desc">Tako — friendly octopus mascot.</desc>
 
-  <!-- Background -->
-  <rect width="1024" height="1024" rx="220" fill="#F06858" />
+  <!-- Background (full-square so favicon has no transparent corners; browsers apply their own rounding) -->
+  <rect width="1024" height="1024" fill="#F06858" />
 
   <!-- Tentacles (short, stubby, cute) -->
   <rect x="295" y="570" width="56" height="180" rx="28" fill="#FFBCB5" />
