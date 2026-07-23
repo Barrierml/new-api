@@ -288,7 +288,7 @@ export function RechargeFormCard({
                     ¥{price}
                   </div>
                   <div className='text-muted-foreground mt-1.5 w-full text-xs sm:mt-2'>
-                    ${price * 2} {t('quota')}
+                    ${price * 3} {t('quota')}
                   </div>
                 </Button>
               ))}

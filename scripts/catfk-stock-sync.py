@@ -37,11 +37,11 @@ GOODS = {
     "uhwx0f": ("plan", 4),   # Pro x2 ¥329
     "bx9j3s": ("plan", 5),   # Pro x3 ¥499
     "snae3x": ("plan", 6),   # Pro x4 ¥749
-    "cbcg11": ("quota", 10 * QUOTA_PER_USD),   # ¥5 测试档
-    "r5ufqm": ("quota", 40 * QUOTA_PER_USD),   # ¥20 -> $40
-    "ot5e6z": ("quota", 100 * QUOTA_PER_USD),  # ¥50 -> $100
-    "jyq5ae": ("quota", 200 * QUOTA_PER_USD),  # ¥100 -> $200
-    "paibsa": ("quota", 400 * QUOTA_PER_USD),  # ¥200 -> $400
+    "cbcg11": ("quota", 15 * QUOTA_PER_USD),   # ¥5 测试档 (¥1=3美元额度)
+    "r5ufqm": ("quota", 60 * QUOTA_PER_USD),   # ¥20 -> $60
+    "ot5e6z": ("quota", 150 * QUOTA_PER_USD),  # ¥50 -> $150
+    "jyq5ae": ("quota", 300 * QUOTA_PER_USD),  # ¥100 -> $300
+    "paibsa": ("quota", 600 * QUOTA_PER_USD),  # ¥200 -> $600
 }
 
 NEW_API_BASE = os.environ.get("NEW_API_BASE", "http://localhost:3000")
