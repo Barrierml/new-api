@@ -1,0 +1,99 @@
+name: deploy
+
+# 全自动上线:git push main → GitHub runner build amd64 → push 阿里云 ACR HK
+# → POST n8n deploy webhook(rep_id=tako)→ n8n 走 mesh 调 Portainer 改 stack 537
+# tag + 拉新镜像 → poll 公网 health。模式见 services/github-actions-cicd.md。
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "web/docs/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "镜像 tag 后缀(留空则用 tako-<short-sha>)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tako-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      REGISTRY: registry.cn-hongkong.aliyuncs.com
+      NAMESPACE: shiroha/new-api
+      REP_ID: tako
+      HEALTH_URL: https://new-tako.shiroha.tech/api/status
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login Aliyun Container Registry
+        run: |
+          printf '%s' '${{ secrets.ALIYUN_REGISTRY_PASSWORD }}' | docker login \
+            registry.cn-hongkong.aliyuncs.com \
+            -u '${{ secrets.ALIYUN_REGISTRY_USERNAME }}' \
+            --password-stdin
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            T="${{ github.event.inputs.tag }}"
+          else
+            T="tako-$(echo '${{ github.sha }}' | cut -c1-7)"
+          fi
+          echo "tag=$T" >> "$GITHUB_OUTPUT"
+
+      - name: Build + push (linux/amd64)
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --cache-from=type=gha,scope=tako \
+            --cache-to=type=gha,mode=max,scope=tako \
+            -t "$REGISTRY/$NAMESPACE:$TAG" \
+            -t "$REGISTRY/$NAMESPACE:tako-latest" \
+            .
+
+      - name: Trigger deploy via n8n webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.N8N_DEPLOY_WEBHOOK }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # n8n 已 fire-and-forget:1-2s 内返 ack,后台异步走 Portainer PUT + 飞书通知
+          HTTP_CODE=$(curl -sS -X POST "$WEBHOOK_URL" \
+            -H 'content-type: application/json' \
+            -d "{\"rep_id\":\"$REP_ID\",\"rep_url\":\"$TAG\"}" \
+            -o /tmp/resp.json -w "%{http_code}" --max-time 30)
+          echo "n8n response: $(cat /tmp/resp.json) (HTTP $HTTP_CODE)"
+          jq -e '.ok == true' /tmp/resp.json > /dev/null
+          echo "✓ n8n queued stack 537 → tag $TAG, polling health..."
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 60); do
+            CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 "$HEALTH_URL" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "✓ health 200 (round $i)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "✗ health did not reach 200 within 5 min" >&2
+          exit 1
