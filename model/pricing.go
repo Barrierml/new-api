@@ -54,6 +54,7 @@ type PricingChannel struct {
 	ChannelId    int     `json:"channel_id"`
 	ChannelName  string  `json:"channel_name"`
 	ChannelRatio float64 `json:"channel_ratio"`
+	ChannelTag   string  `json:"channel_tag"`
 }
 
 type PricingVendor struct {
@@ -285,12 +286,23 @@ func updatePricing() {
 	}
 	modelGroupChannelRatio := make(map[string]map[string]*minMaxRatio)
 
-	// modelChannels[model][channelId] = {name, ratio} for the public channel breakdown
+	// modelChannels[model][channelId] = {name, ratio, tag} for the public channel breakdown
 	type channelInfo struct {
 		name  string
 		ratio float64
+		tag   string
 	}
 	modelChannels := make(map[string]map[int]channelInfo)
+
+	// Preload channel tags (security category: 安全 / 无法验证安全性)
+	channelTags := make(map[int]string)
+	var chRows []Channel
+	DB.Select("id, tag").Find(&chRows)
+	for _, ch := range chRows {
+		if ch.Tag != nil {
+			channelTags[ch.Id] = *ch.Tag
+		}
+	}
 
 	for _, ability := range enableAbilities {
 		groups, ok := modelGroupsMap[ability.Model]
@@ -312,7 +324,7 @@ func updatePricing() {
 			modelChannels[ability.Model] = make(map[int]channelInfo)
 		}
 		if _, exists := modelChannels[ability.Model][ability.ChannelId]; !exists {
-			modelChannels[ability.Model][ability.ChannelId] = channelInfo{name: ability.ChannelName, ratio: cr}
+			modelChannels[ability.Model][ability.ChannelId] = channelInfo{name: ability.ChannelName, ratio: cr, tag: channelTags[ability.ChannelId]}
 		}
 		if mm, exists := modelGroupChannelRatio[ability.Model][ability.Group]; exists {
 			if cr < mm.min {
@@ -496,7 +508,7 @@ func updatePricing() {
 		if chans, ok := modelChannels[model]; ok && len(chans) > 0 {
 			list := make([]PricingChannel, 0, len(chans))
 			for id, info := range chans {
-				list = append(list, PricingChannel{ChannelId: id, ChannelName: info.name, ChannelRatio: info.ratio})
+				list = append(list, PricingChannel{ChannelId: id, ChannelName: info.name, ChannelRatio: info.ratio, ChannelTag: info.tag})
 			}
 			sort.Slice(list, func(i, j int) bool {
 				if list[i].ChannelRatio != list[j].ChannelRatio {

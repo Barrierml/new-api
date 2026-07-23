@@ -18,6 +18,8 @@ Credentials are read from /Users/bytedance/ccgo/packages/par/.env (PAR_PG_*/PAR_
 import argparse
 import csv
 import json
+import os
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -27,8 +29,13 @@ from zoneinfo import ZoneInfo
 import psycopg
 
 PAR_ENV = "/Users/bytedance/ccgo/packages/par/.env"
-LOCAL_PSQL = ["docker", "exec", "-i", "new-api-dev-pg", "psql", "-U", "root", "-d", "new-api"]
-LOCAL_PSQL_RO = ["docker", "exec", "new-api-dev-pg", "psql", "-U", "root", "-d", "new-api", "-At"]
+# Target DB psql command. Default = local new-api-dev container.
+# Override via $TAKO_PSQL for a remote target, e.g.
+#   TAKO_PSQL="psql -h 172.17.66.24 -p 15432 -U tako -d tako" (set PGPASSWORD too)
+LOCAL_PSQL = shlex.split(
+    os.environ.get("TAKO_PSQL", "docker exec -i new-api-dev-pg psql -U root -d new-api")
+)
+LOCAL_PSQL_RO = LOCAL_PSQL + ["-At"]
 QUOTA_PER_USD = 500_000
 QUOTA_INT32_MAX = 2_147_483_647
 SHANGHAI = ZoneInfo("Asia/Shanghai")

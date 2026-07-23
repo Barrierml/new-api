@@ -130,4 +130,5 @@ export type PricingChannel = {
   channel_id: number
   channel_name: string
   channel_ratio: number
+  channel_tag?: string
 }

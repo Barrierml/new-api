@@ -33,6 +33,7 @@ import { parseTags } from '../lib/filters'
 import { isTokenBasedModel } from '../lib/model-helpers'
 import { formatPrice, formatRequestPrice } from '../lib/price'
 import type { PricingModel, TokenUnit } from '../types'
+import { ChannelSecurityBadge } from './channel-security-badge'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelPerfBadge, type ModelPerfBadgeData } from './model-perf-badge'
 
@@ -81,6 +82,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
 
   const channelNames = channels.map((c) => c.channel_name)
   const primaryChannel = channelNames[0]
+  const primaryChannelTag = channels[0]?.channel_tag
   const bottomTags = [...endpoints.slice(0, 2), ...tags.slice(0, 2)]
   const hiddenCount =
     Math.max(channelNames.length - 1, 0) +
@@ -250,8 +252,9 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
       <div className='mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:mt-4'>
         <div className='flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1'>
           {primaryChannel && (
-            <span className='text-muted-foreground text-sm font-medium'>
+            <span className='text-muted-foreground flex items-center gap-1 text-sm font-medium'>
               {primaryChannel}
+              <ChannelSecurityBadge tag={primaryChannelTag} compact />
             </span>
           )}
           <ModelBillingModeBadge model={props.model} />

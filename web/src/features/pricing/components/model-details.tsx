@@ -81,6 +81,7 @@ import type {
   PricingModel,
   TokenUnit,
 } from '../types'
+import { ChannelSecurityBadge } from './channel-security-badge'
 import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 import { ModelBillingModeBadge } from './model-billing-mode-badge'
 import { ModelDetailsApi } from './model-details-api'
@@ -1063,7 +1064,10 @@ function GroupPricingSection(props: {
               className: thClass,
               cellClassName: 'py-2.5',
               cell: (ch) => (
-                <span className='font-medium'>{ch.channel_name}</span>
+                <span className='flex items-center gap-1.5 font-medium'>
+                  {ch.channel_name}
+                  <ChannelSecurityBadge tag={ch.channel_tag} compact />
+                </span>
               ),
             },
             {
