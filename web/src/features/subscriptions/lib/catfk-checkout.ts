@@ -1,9 +1,10 @@
 // CatFK checkout 闭环:下单 → 支付链接(支付宝/微信) → 轮询 → 自动兑现。
-// 后端桥接服务见 scripts/catfk-checkout.py(默认 :8390)。
+// 后端为 new-api 原生端点 /api/user/checkout(见 controller/checkout.go),
+// 同域调用,凭据走 api 实例的 Authorization header,不再依赖本地 :8390 服务。
+
+import { api } from '@/lib/api'
 
 import { catfkGoodsKeyForPrice } from './catfk-plans'
-
-const CHECKOUT_BASE = 'http://localhost:8390'
 
 export type CatfkPayMethod = 'alipay' | 'wechat'
 
@@ -21,30 +22,28 @@ export type CheckoutStatus =
 
 export async function startCheckout(
   goodsKey: string,
-  jwt: string,
   pay: CatfkPayMethod = 'alipay'
 ): Promise<CheckoutStart> {
-  const resp = await fetch(`${CHECKOUT_BASE}/checkout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jwt, goods_key: goodsKey, pay }),
+  const res = await api.post('/api/user/checkout', {
+    goods_key: goodsKey,
+    pay,
   })
-  const data = await resp.json()
-  if (!resp.ok || data.error) {
-    throw new Error(data.error || `checkout failed (${resp.status})`)
+  const body = res.data
+  if (!body?.success) {
+    throw new Error(body?.message || 'checkout failed')
   }
-  return data
+  return body.data as CheckoutStart
 }
 
 export async function getCheckoutStatus(
   tradeNo: string
 ): Promise<{ status: CheckoutStatus; kind?: string }> {
-  const resp = await fetch(
-    `${CHECKOUT_BASE}/checkout/status?trade_no=${encodeURIComponent(tradeNo)}`
+  const res = await api.get(
+    `/api/user/checkout/status?trade_no=${encodeURIComponent(tradeNo)}`
   )
-  const data = await resp.json()
-  if (!resp.ok) return { status: 'unknown' }
-  return { status: data.status || 'unknown', kind: data.kind }
+  const body = res.data
+  if (!body?.success) return { status: 'unknown' }
+  return { status: body.data?.status || 'unknown', kind: body.data?.kind }
 }
 
 /**
@@ -53,7 +52,6 @@ export async function getCheckoutStatus(
  */
 export async function runCatfkCheckout(options: {
   price: number
-  jwt: string
   pay?: CatfkPayMethod
   onStatus?: (status: CheckoutStatus) => void
   pollIntervalMs?: number
@@ -64,7 +62,6 @@ export async function runCatfkCheckout(options: {
 
   const { trade_no, payurl } = await startCheckout(
     goodsKey,
-    options.jwt,
     options.pay ?? 'alipay'
   )
   window.open(payurl, '_blank', 'noopener,noreferrer')

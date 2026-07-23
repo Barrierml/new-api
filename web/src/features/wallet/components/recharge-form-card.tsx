@@ -141,7 +141,7 @@ export function RechargeFormCard({
     setCheckoutKey(`${price}:${pay}`)
     try {
       toast.info(t('Opening payment page, please complete payment'))
-      const status = await runCatfkCheckout({ price, jwt: accessToken, pay })
+      const status = await runCatfkCheckout({ price, pay })
       if (status === 'granted') {
         toast.success(t('Payment received, quota credited!'))
         onCheckoutSuccess?.()

@@ -231,7 +231,6 @@ export function SubscriptionPlansCard({
         toast.info(t('Opening payment page, please complete payment'))
         const status = await runCatfkCheckout({
           price: Number(plan.price_amount || 0),
-          jwt: accessToken,
           pay,
         })
         if (status === 'granted') {
