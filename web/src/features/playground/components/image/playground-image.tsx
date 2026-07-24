@@ -45,6 +45,10 @@ function isImageModel(model: string): boolean {
   return model.startsWith('gpt-image') || model.startsWith('grok-imagine')
 }
 
+function supportsImg2Img(model: string): boolean {
+  return model.startsWith('gpt-image')
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -187,7 +191,11 @@ export function PlaygroundImage({
             <div className='flex flex-wrap items-center gap-2 border-b px-4 py-2.5'>
               <NativeSelect
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => {
+                  const newModel = e.target.value
+                  setModel(newModel)
+                  if (!supportsImg2Img(newModel)) setReferenceImage(null)
+                }}
                 disabled={isLoadingModels || imageModels.length === 0}
                 size='sm'
                 className='text-xs'
@@ -231,16 +239,18 @@ export function PlaygroundImage({
                 </NativeSelect>
               )}
 
-              <Button
-                variant='ghost'
-                size='sm'
-                className='ml-auto text-xs'
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isGenerating}
-              >
-                <Upload className='mr-1.5 size-3.5' />
-                {t('Reference Image')}
-              </Button>
+              {supportsImg2Img(model) && (
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='ml-auto text-xs'
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isGenerating}
+                >
+                  <Upload className='mr-1.5 size-3.5' />
+                  {t('Reference Image')}
+                </Button>
+              )}
               <input
                 ref={fileInputRef}
                 type='file'
