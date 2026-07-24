@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,17 @@ func SetRouter(router *gin.Engine, assets WebAssets) {
 	SetDashboardRouter(router)
 	SetRelayRouter(router)
 	SetVideoRouter(router)
+	// PAR/tako-cli compatibility endpoints (root path, not under /api)
+	// Existing CLI calls https://tako.shiroha.tech/apiStats/api/*
+	apiStats := router.Group("/apiStats/api")
+	apiStats.Use(middleware.RouteTag("api"))
+	{
+		apiStats.POST("/get-key-id", controller.GetKeyID)
+		apiStats.POST("/user-stats", controller.UserStats)
+		apiStats.GET("/user-stats", controller.UserStats)
+		apiStats.POST("/user-quota", controller.UserQuota)
+		apiStats.GET("/user-quota", controller.UserQuota)
+	}
 	frontendBaseUrl := os.Getenv("FRONTEND_BASE_URL")
 	if common.IsMasterNode && frontendBaseUrl != "" {
 		frontendBaseUrl = ""

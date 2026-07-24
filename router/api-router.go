@@ -32,17 +32,6 @@ func SetApiRouter(router *gin.Engine) {
 		//apiRouter.GET("/midjourney", controller.GetMidjourney)
 		apiRouter.GET("/home_page_content", controller.GetHomePageContent)
 		apiRouter.GET("/pricing", middleware.HeaderNavModuleAuth("pricing"), controller.GetPricing)
-
-		// PAR/tako-cli compatibility endpoints (formerly served by .22 PAR under /apiStats/api/*)
-		apiStatsRoute := apiRouter.Group("/apiStats/api")
-		{
-			apiStatsRoute.POST("/get-key-id", controller.GetKeyID)
-			apiStatsRoute.POST("/user-stats", controller.UserStats)
-			apiStatsRoute.GET("/user-stats", controller.UserStats)
-			apiStatsRoute.POST("/user-quota", controller.UserQuota)
-			apiStatsRoute.GET("/user-quota", controller.UserQuota)
-		}
-
 		perfMetricsRoute := apiRouter.Group("/perf-metrics")
 		perfMetricsRoute.Use(middleware.HeaderNavModulePublicOrUserAuth("pricing"))
 		{
