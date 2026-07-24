@@ -28,9 +28,12 @@ import {
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import type { UserActiveSubscription } from '../types'
+
 type UserQuotaCellProps = {
   used: number
   remaining: number
+  subscription?: UserActiveSubscription | null
 }
 
 function getQuotaProgressColor(percentage: number): string {
@@ -39,7 +42,7 @@ function getQuotaProgressColor(percentage: number): string {
   return '[&_[data-slot=progress-indicator]]:bg-emerald-500'
 }
 
-export function UserQuotaCell(props: UserQuotaCellProps) {
+function WalletRow(props: { used: number; remaining: number }) {
   const { t } = useTranslation()
   const total = props.used + props.remaining
   const percentage = total > 0 ? (props.remaining / total) * 100 : 0
@@ -47,6 +50,77 @@ export function UserQuotaCell(props: UserQuotaCellProps) {
   const formattedTotal = formatQuota(total)
 
   if (total === 0) {
+    return (
+      <div className='flex items-center justify-between gap-2 text-xs'>
+        <span className='text-muted-foreground shrink-0'>{t('Wallet')}</span>
+        <StatusBadge
+          label={t('No Quota')}
+          variant='neutral'
+          copyable={false}
+          className='-ml-0'
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className='space-y-1'>
+      <div className='flex items-center justify-between gap-2 text-xs'>
+        <span className='text-muted-foreground shrink-0'>{t('Wallet')}</span>
+        <span className='min-w-0 truncate font-medium tabular-nums'>
+          {formattedRemaining}
+          <span className='text-muted-foreground font-normal'>
+            {' '}
+            / {formattedTotal}
+          </span>
+        </span>
+      </div>
+      <Progress
+        value={percentage}
+        className={cn('h-1.5', getQuotaProgressColor(percentage))}
+      />
+    </div>
+  )
+}
+
+function PlanRow(props: { subscription: UserActiveSubscription }) {
+  const { t } = useTranslation()
+  const sub = props.subscription
+  const total = Number(sub.amount_total || 0)
+  const used = Number(sub.amount_used || 0)
+  const remaining = Math.max(0, Number(sub.amount_remain ?? total - used))
+  const percentage = total > 0 ? (remaining / total) * 100 : 0
+  const title = sub.plan_title || t('Subscription')
+
+  return (
+    <div className='space-y-1'>
+      <div className='flex items-center justify-between gap-2 text-xs'>
+        <span className='text-muted-foreground shrink-0'>{t('Plan')}</span>
+        <span className='min-w-0 truncate font-medium'>
+          {title}
+          <span className='text-muted-foreground font-normal tabular-nums'>
+            {' '}
+            · {formatQuota(remaining)} / {formatQuota(total)}
+          </span>
+        </span>
+      </div>
+      {total > 0 && (
+        <Progress
+          value={percentage}
+          className={cn('h-1.5', getQuotaProgressColor(percentage))}
+        />
+      )}
+    </div>
+  )
+}
+
+export function UserQuotaCell(props: UserQuotaCellProps) {
+  const { t } = useTranslation()
+  const walletTotal = props.used + props.remaining
+  const hasWallet = walletTotal > 0
+  const hasPlan = !!props.subscription
+
+  if (!hasWallet && !hasPlan) {
     return (
       <StatusBadge
         label={t('No Quota')}
@@ -61,36 +135,47 @@ export function UserQuotaCell(props: UserQuotaCellProps) {
     <Tooltip>
       <TooltipTrigger
         render={
-          <div className='w-full min-w-0 cursor-help space-y-1.5 overflow-hidden' />
+          <div className='w-full min-w-0 cursor-help space-y-2 overflow-hidden' />
         }
       >
-        <div className='grid min-w-0 grid-cols-2 gap-x-4 text-xs'>
-          <span className='min-w-0 truncate font-medium tabular-nums'>
-            {formattedRemaining}
-          </span>
-          <span className='text-muted-foreground min-w-0 truncate text-right tabular-nums'>
-            {formattedTotal}
-          </span>
-        </div>
-        <Progress
-          value={percentage}
-          className={cn('h-1.5', getQuotaProgressColor(percentage))}
-        />
+        <WalletRow used={props.used} remaining={props.remaining} />
+        {hasPlan && props.subscription ? (
+          <PlanRow subscription={props.subscription} />
+        ) : (
+          <div className='flex items-center justify-between gap-2 text-xs'>
+            <span className='text-muted-foreground shrink-0'>{t('Plan')}</span>
+            <span className='text-muted-foreground'>{t('No Plan')}</span>
+          </div>
+        )}
       </TooltipTrigger>
       <TooltipContent>
-        <div className='space-y-1 text-xs'>
+        <div className='space-y-2 text-xs'>
+          <div className='font-medium'>{t('Wallet')}</div>
           <div>
             {t('Used:')} {formatQuota(props.used)}
           </div>
           <div>
-            {t('Remaining:')} {formattedRemaining}
+            {t('Remaining:')} {formatQuota(props.remaining)}
           </div>
           <div>
-            {t('Total:')} {formattedTotal}
+            {t('Total:')} {formatQuota(walletTotal)}
           </div>
-          <div>
-            {t('Percentage:')} {percentage.toFixed(1)}%
-          </div>
+          {hasPlan && props.subscription && (
+            <>
+              <div className='border-border mt-1 border-t pt-1 font-medium'>
+                {t('Plan')}: {props.subscription.plan_title || t('Subscription')}
+              </div>
+              <div>
+                {t('Used:')} {formatQuota(props.subscription.amount_used)}
+              </div>
+              <div>
+                {t('Remaining:')} {formatQuota(props.subscription.amount_remain)}
+              </div>
+              <div>
+                {t('Total:')} {formatQuota(props.subscription.amount_total)}
+              </div>
+            </>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>

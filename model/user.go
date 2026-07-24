@@ -110,6 +110,22 @@ type User struct {
 	LastLoginAt      int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AuthVersion      int64                      `json:"-" gorm:"type:bigint;not null;default:1;column:auth_version"`
 	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	// ActiveSubscription is a list-view only summary of the user's current
+	// active subscription. It is populated by AttachActiveSubscriptionSummary
+	// and is not a database column.
+	ActiveSubscription *UserActiveSubscriptionSummary `json:"active_subscription,omitempty" gorm:"-:all"`
+}
+
+// UserActiveSubscriptionSummary is a compact subscription view for admin
+// user list pages so wallet quota and plan quota are not mixed.
+type UserActiveSubscriptionSummary struct {
+	PlanId        int    `json:"plan_id"`
+	PlanTitle     string `json:"plan_title"`
+	AmountTotal   int64  `json:"amount_total"`
+	AmountUsed    int64  `json:"amount_used"`
+	AmountRemain  int64  `json:"amount_remain"`
+	EndTime       int64  `json:"end_time"`
+	NextResetTime int64  `json:"next_reset_time"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -378,6 +394,7 @@ func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (use
 		return nil, 0, err
 	}
 
+	AttachActiveSubscriptionSummary(users)
 	return users, total, nil
 }
 
@@ -447,6 +464,7 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 		return nil, 0, err
 	}
 
+	AttachActiveSubscriptionSummary(users)
 	return users, total, nil
 }
 
@@ -461,7 +479,86 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 	} else {
 		err = DB.Omit("password", "access_token").First(&user, "id = ?", id).Error
 	}
-	return &user, err
+	if err != nil {
+		return nil, err
+	}
+	users := []*User{&user}
+	AttachActiveSubscriptionSummary(users)
+	return users[0], nil
+}
+
+// AttachActiveSubscriptionSummary fills ActiveSubscription for admin list/detail
+// views so wallet quota and plan quota can be shown separately.
+func AttachActiveSubscriptionSummary(users []*User) {
+	if len(users) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(users))
+	index := make(map[int]*User, len(users))
+	for _, user := range users {
+		if user == nil || user.Id <= 0 {
+			continue
+		}
+		ids = append(ids, user.Id)
+		index[user.Id] = user
+	}
+	if len(ids) == 0 {
+		return
+	}
+
+	now := common.GetTimestamp()
+	var subs []UserSubscription
+	if err := DB.Where("user_id IN ? AND status = ? AND end_time > ?", ids, "active", now).
+		Order("end_time desc, id desc").
+		Find(&subs).Error; err != nil || len(subs) == 0 {
+		return
+	}
+
+	// Keep the first (latest-ending) active sub per user.
+	best := make(map[int]UserSubscription, len(subs))
+	planIDs := make(map[int]struct{})
+	for _, sub := range subs {
+		if _, ok := best[sub.UserId]; ok {
+			continue
+		}
+		best[sub.UserId] = sub
+		planIDs[sub.PlanId] = struct{}{}
+	}
+	if len(best) == 0 {
+		return
+	}
+
+	planIDList := make([]int, 0, len(planIDs))
+	for id := range planIDs {
+		planIDList = append(planIDList, id)
+	}
+	var plans []SubscriptionPlan
+	planTitle := make(map[int]string, len(planIDList))
+	if err := DB.Select("id, title").Where("id IN ?", planIDList).Find(&plans).Error; err == nil {
+		for _, plan := range plans {
+			planTitle[plan.Id] = plan.Title
+		}
+	}
+
+	for userId, sub := range best {
+		user := index[userId]
+		if user == nil {
+			continue
+		}
+		remain := sub.AmountTotal - sub.AmountUsed
+		if remain < 0 {
+			remain = 0
+		}
+		user.ActiveSubscription = &UserActiveSubscriptionSummary{
+			PlanId:        sub.PlanId,
+			PlanTitle:     planTitle[sub.PlanId],
+			AmountTotal:   sub.AmountTotal,
+			AmountUsed:    sub.AmountUsed,
+			AmountRemain:  remain,
+			EndTime:       sub.EndTime,
+			NextResetTime: sub.NextResetTime,
+		}
+	}
 }
 
 func GetUserIdByAffCode(affCode string) (int, error) {
