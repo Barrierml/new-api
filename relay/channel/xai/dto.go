@@ -20,8 +20,11 @@ type ImageRequest struct {
 	N      int    `json:"n,omitempty"`
 	// Size           string          `json:"size,omitempty"`
 	// Quality        string          `json:"quality,omitempty"`
-	ResponseFormat string `json:"response_format,omitempty"`
-	// Style          string          `json:"style,omitempty"`
-	// User           string          `json:"user,omitempty"`
-	// ExtraFields    json.RawMessage `json:"extra_fields,omitempty"`
+	ResponseFormat string       `json:"response_format,omitempty"`
+	Image          *ImageSource `json:"image,omitempty"`
+}
+
+type ImageSource struct {
+	URL  string `json:"url"`
+	Type string `json:"type"`
 }

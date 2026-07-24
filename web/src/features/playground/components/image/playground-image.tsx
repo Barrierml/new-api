@@ -46,7 +46,7 @@ function isImageModel(model: string): boolean {
 }
 
 function supportsImg2Img(model: string): boolean {
-  return model.startsWith('gpt-image')
+  return model.startsWith('gpt-image') || model.startsWith('grok-imagine')
 }
 
 function fileToBase64(file: File): Promise<string> {

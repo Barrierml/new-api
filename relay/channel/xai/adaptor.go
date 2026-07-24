@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/relay/channel/openai"
@@ -43,6 +44,13 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		Prompt:         request.Prompt,
 		N:              int(lo.FromPtrOr(request.N, uint(1))),
 		ResponseFormat: request.ResponseFormat,
+	}
+	if len(request.Image) > 0 {
+		var imageStr string
+		if err := common.Unmarshal(request.Image, &imageStr); err == nil && imageStr != "" {
+			xaiRequest.Image = &ImageSource{URL: imageStr, Type: "base64"}
+			info.RequestURLPath = strings.Replace(info.RequestURLPath, "/images/generations", "/images/edits", 1)
+		}
 	}
 	return xaiRequest, nil
 }
