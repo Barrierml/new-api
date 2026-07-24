@@ -44,6 +44,12 @@ export function buildChatCompletionPayload(
     stream: config.stream,
   }
 
+  // Grok(xAI，含 xAI 托管的 composer)不支持 presence/frequency_penalty,
+  // 带上会被上游拒绝返回 400。这里按模型名跳过这两个参数(后端也有兜底剔除)。
+  const lowerModel = (config.model || '').toLowerCase()
+  const supportsPenalty =
+    !lowerModel.startsWith('grok') && !lowerModel.startsWith('composer')
+
   if (parameterEnabled.temperature) {
     payload.temperature = config.temperature
   }
@@ -56,11 +62,11 @@ export function buildChatCompletionPayload(
     payload.max_tokens = config.max_tokens
   }
 
-  if (parameterEnabled.frequency_penalty) {
+  if (supportsPenalty && parameterEnabled.frequency_penalty) {
     payload.frequency_penalty = config.frequency_penalty
   }
 
-  if (parameterEnabled.presence_penalty) {
+  if (supportsPenalty && parameterEnabled.presence_penalty) {
     payload.presence_penalty = config.presence_penalty
   }
 

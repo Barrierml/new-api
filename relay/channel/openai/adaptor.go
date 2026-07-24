@@ -238,6 +238,14 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
+	// Grok（xAI）不支持 presence_penalty / frequency_penalty，带上会 400
+	// (upstream: "Model grok-x does not support parameter presencePenalty")。
+	// 游乐场默认会附带这两个参数，这里对 grok 系列(含 xAI 托管的 composer)统一剔除做兜底。
+	lowerModel := strings.ToLower(info.UpstreamModelName)
+	if strings.HasPrefix(lowerModel, "grok") || strings.HasPrefix(lowerModel, "composer") {
+		request.PresencePenalty = nil
+		request.FrequencyPenalty = nil
+	}
 	if info.ChannelType != constant.ChannelTypeOpenAI && info.ChannelType != constant.ChannelTypeAzure {
 		request.StreamOptions = nil
 	}
