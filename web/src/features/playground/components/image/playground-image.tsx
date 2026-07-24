@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { ImageIcon, Sparkles } from 'lucide-react'
+import { ImageIcon, Sparkles, Upload, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -22,6 +22,7 @@ interface ImageHistoryItem {
   prompt: string
   model: string
   size: string
+  referenceImage?: string
   images: ImageGenerationResponse['data']
   timestamp: number
 }
@@ -44,6 +45,18 @@ function isImageModel(model: string): boolean {
   return model.startsWith('gpt-image') || model.startsWith('grok-imagine')
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      resolve(result)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export function PlaygroundImage({
   models,
   groups,
@@ -57,11 +70,29 @@ export function PlaygroundImage({
   const [size, setSize] = useState<string>('1024x1024')
   const [isGenerating, setIsGenerating] = useState(false)
   const [history, setHistory] = useState<ImageHistoryItem[]>([])
+  const [referenceImage, setReferenceImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const imageModels = models.filter((m) => isImageModel(m.value))
 
   if (!model && imageModels.length > 0) {
     setModel(imageModels[0].value)
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error(t('Please select an image file'))
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error(t('Image must be less than 20MB'))
+      return
+    }
+    const base64 = await fileToBase64(file)
+    setReferenceImage(base64)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleGenerate = async () => {
@@ -73,12 +104,14 @@ export function PlaygroundImage({
         prompt: prompt.trim(),
         size,
         group: currentGroup || undefined,
+        image: referenceImage || undefined,
       })
       setHistory((prev) => [
         {
           prompt: prompt.trim(),
           model,
           size,
+          referenceImage: referenceImage || undefined,
           images: res.data,
           timestamp: Date.now(),
         },
@@ -103,7 +136,6 @@ export function PlaygroundImage({
 
   return (
     <div className='flex size-full min-h-0 flex-col'>
-      {/* Results area */}
       <div className='flex-1 overflow-y-auto'>
         {history.length === 0 ? (
           <EmptyState />
@@ -118,6 +150,11 @@ export function PlaygroundImage({
                   <span className='bg-muted text-muted-foreground rounded px-2 py-0.5 text-[11px]'>
                     {item.size}
                   </span>
+                  {item.referenceImage && (
+                    <span className='bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-2 py-0.5 text-[11px]'>
+                      {t('img2img')}
+                    </span>
+                  )}
                 </div>
                 <div
                   className={cn(
@@ -193,14 +230,57 @@ export function PlaygroundImage({
                   ))}
                 </NativeSelect>
               )}
+
+              <Button
+                variant='ghost'
+                size='sm'
+                className='ml-auto text-xs'
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isGenerating}
+              >
+                <Upload className='mr-1.5 size-3.5' />
+                {t('Reference Image')}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept='image/*'
+                className='hidden'
+                onChange={handleFileSelect}
+              />
             </div>
+
+            {referenceImage && (
+              <div className='flex items-center gap-3 border-b px-4 py-2.5'>
+                <div className='relative size-14 shrink-0 overflow-hidden rounded-lg border'>
+                  <img
+                    src={referenceImage}
+                    alt='Reference'
+                    className='size-full object-cover'
+                  />
+                  <button
+                    onClick={() => setReferenceImage(null)}
+                    className='absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-black/90'
+                  >
+                    <X className='size-3' />
+                  </button>
+                </div>
+                <span className='text-muted-foreground text-xs'>
+                  {t('Image will be used as reference for generation (img2img)')}
+                </span>
+              </div>
+            )}
 
             <div className='flex items-end gap-3 p-4'>
               <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={t('Describe the image you want to generate...')}
+                placeholder={
+                  referenceImage
+                    ? t('Describe how to modify the reference image...')
+                    : t('Describe the image you want to generate...')
+                }
                 disabled={isGenerating}
                 className='min-h-[4.5rem] resize-none border-0 px-3 py-2 shadow-none focus-visible:ring-0'
                 rows={3}
@@ -243,7 +323,7 @@ function EmptyState() {
           {t('Image Generation')}
         </p>
         <p className='text-muted-foreground mt-1 max-w-sm text-xs'>
-          {t('Describe what you want to create and the AI will generate an image for you.')}
+          {t('Describe what you want to create, or upload a reference image for img2img editing.')}
         </p>
       </div>
     </div>

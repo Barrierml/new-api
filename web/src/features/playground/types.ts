@@ -157,6 +157,7 @@ export interface ImageGenerationRequest {
   n?: number
   size?: string
   group?: string
+  image?: string
 }
 
 export interface ImageGenerationResponse {

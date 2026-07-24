@@ -89,12 +89,16 @@ export async function getUserGroups(): Promise<GroupOption[]> {
 export async function generateImage(
   params: ImageGenerationRequest
 ): Promise<ImageGenerationResponse> {
-  const res = await api.post(API_ENDPOINTS.IMAGE_GENERATIONS, {
+  const body: Record<string, unknown> = {
     model: params.model,
     prompt: params.prompt,
     n: params.n || 1,
     size: params.size || '1024x1024',
     group: params.group,
-  })
+  }
+  if (params.image) {
+    body.image = params.image
+  }
+  const res = await api.post(API_ENDPOINTS.IMAGE_GENERATIONS, body)
   return res.data
 }
