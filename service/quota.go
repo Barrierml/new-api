@@ -40,6 +40,21 @@ type QuotaInfo struct {
 	ChannelRatio  float64
 }
 
+// effectiveChannelRatio returns the ratio of the channel that actually served
+// the request. On retry the relay picks a new channel and refreshes
+// ChannelMeta.ChannelRatio each pass, whereas PriceData.ChannelRatio is
+// computed once before the retry loop and stays stale. Billing must charge for
+// the channel that succeeded, so prefer ChannelMeta and fall back to PriceData.
+func effectiveChannelRatio(relayInfo *relaycommon.RelayInfo) float64 {
+	if relayInfo != nil && relayInfo.ChannelMeta != nil && relayInfo.ChannelMeta.ChannelRatio > 0 {
+		return relayInfo.ChannelMeta.ChannelRatio
+	}
+	if relayInfo != nil && relayInfo.PriceData.ChannelRatio > 0 {
+		return relayInfo.PriceData.ChannelRatio
+	}
+	return 1.0
+}
+
 func hasCustomModelRatio(modelName string, currentRatio float64) bool {
 	defaultRatio, exists := ratio_setting.GetDefaultModelRatioMap()[modelName]
 	if !exists {
@@ -207,7 +222,7 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		UsePrice:     usePrice,
 		ModelRatio:   modelRatio,
 		GroupRatio:   groupRatio,
-		ChannelRatio: relayInfo.PriceData.ChannelRatio,
+		ChannelRatio: effectiveChannelRatio(relayInfo),
 	}
 
 	quota, clamp := calculateAudioQuota(quotaInfo)
@@ -331,7 +346,7 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 		UsePrice:     usePrice,
 		ModelRatio:   modelRatio,
 		GroupRatio:   groupRatio,
-		ChannelRatio: relayInfo.PriceData.ChannelRatio,
+		ChannelRatio: effectiveChannelRatio(relayInfo),
 	}
 
 	quota, clamp := calculateAudioQuota(quotaInfo)

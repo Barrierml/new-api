@@ -334,7 +334,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	}
 
 	// record channel ratio for later application (after tiered settlement)
-	channelRatio := relayInfo.PriceData.ChannelRatio
+	// use the channel that actually served the request (may differ from the
+	// first pick after a retry) — see effectiveChannelRatio.
+	channelRatio := effectiveChannelRatio(relayInfo)
 	if channelRatio <= 0 {
 		channelRatio = 1.0
 	}
