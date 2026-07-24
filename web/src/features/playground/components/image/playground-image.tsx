@@ -202,7 +202,7 @@ export function PlaygroundImage({
                 onKeyDown={handleKeyDown}
                 placeholder={t('Describe the image you want to generate...')}
                 disabled={isGenerating}
-                className='min-h-[4.5rem] resize-none border-0 p-0 shadow-none focus-visible:ring-0'
+                className='min-h-[4.5rem] resize-none border-0 px-3 py-2 shadow-none focus-visible:ring-0'
                 rows={3}
               />
               <Button
