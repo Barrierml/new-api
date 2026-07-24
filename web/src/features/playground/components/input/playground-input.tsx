@@ -33,6 +33,7 @@ import type {
   ParameterEnabled,
   PlaygroundConfig,
 } from '../../types'
+import type { VendorInfo } from '../../hooks/use-playground-options'
 import { PlaygroundInputControls } from './playground-input-controls'
 import { PlaygroundInputTools } from './playground-input-tools'
 
@@ -60,6 +61,7 @@ interface PlaygroundInputProps {
     value: boolean
   ) => void
   parameterEnabled: ParameterEnabled
+  vendorMap?: Map<string, VendorInfo>
 }
 
 export function PlaygroundInput({
@@ -80,6 +82,7 @@ export function PlaygroundInput({
   onClearMessages,
   onParameterEnabledChange,
   parameterEnabled,
+  vendorMap,
 }: PlaygroundInputProps) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
@@ -124,6 +127,7 @@ export function PlaygroundInput({
             onModelChange={onModelChange}
             onStop={onStop}
             text={text}
+            vendorMap={vendorMap}
             tools={
               <PlaygroundInputTools
                 config={config}

@@ -60,6 +60,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import {
@@ -568,6 +569,8 @@ export interface ModelGroupSelectorProps {
   // Common props
   className?: string
   disabled?: boolean
+  // Vendor grouping (optional — when provided, models are grouped by vendor)
+  vendorMap?: Map<string, { name: string; icon: string }>
 }
 
 /**
@@ -583,6 +586,7 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
   onGroupChange,
   className,
   disabled = false,
+  vendorMap,
 }) => {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -619,6 +623,24 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
       return searchableText.includes(query)
     })
   }, [models, searchQuery])
+
+  const vendorGroupedModels = useMemo(() => {
+    if (!vendorMap) return null
+    const groups: Record<string, ModelOption[]> = {}
+    const other: ModelOption[] = []
+    for (const model of filteredModels) {
+      const vendor = vendorMap.get(model.value)
+      if (vendor) {
+        if (!groups[vendor.name]) groups[vendor.name] = []
+        groups[vendor.name].push(model)
+      } else {
+        other.push(model)
+      }
+    }
+    const entries = Object.entries(groups)
+    if (other.length > 0) entries.push(['Other', other])
+    return entries
+  }, [filteredModels, vendorMap])
 
   const handleModelChange = useCallback(
     (value: string) => {
@@ -733,6 +755,42 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
     </div>
   )
 
+  const renderModelItem = (model: ModelOption) => (
+    <CommandItem
+      className={cn(
+        modelGroupSelectorLayoutClasses.modelItem,
+        selectedModel === model.value
+          ? modelGroupSelectorLayoutClasses.selectedModelItem
+          : modelGroupSelectorLayoutClasses.unselectedModelItem
+      )}
+      key={model.value}
+      onSelect={handleModelChange}
+      ref={
+        selectedModel === model.value
+          ? selectedModelOptionRef
+          : undefined
+      }
+      value={model.value}
+    >
+      <span
+        className={cn(
+          'min-w-0 truncate',
+          selectedModel === model.value
+            ? modelGroupSelectorLayoutClasses.selectedModelText
+            : modelGroupSelectorLayoutClasses.unselectedModelText
+        )}
+      >
+        {model.label}
+      </span>
+      <Check
+        className={cn(
+          'size-3.5 shrink-0',
+          selectedModel === model.value ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+    </CommandItem>
+  )
+
   const renderModelList = () => (
     <Command
       className={cn(
@@ -757,43 +815,26 @@ export const ModelGroupSelector: React.FC<ModelGroupSelectorProps> = ({
           <div className='text-muted-foreground px-3 py-8 text-center text-[12px] leading-5'>
             {t('No model found.')}
           </div>
+        ) : vendorGroupedModels ? (
+          vendorGroupedModels.map(([vendorName, vendorModels]) => (
+            <CommandGroup
+              key={vendorName}
+              heading={
+                <span className='inline-flex items-center gap-1.5'>
+                  {vendorMap?.get(vendorModels[0]?.value)?.icon
+                    ? getLobeIcon(vendorMap.get(vendorModels[0]?.value)?.icon, 12)
+                    : null}
+                  {vendorName}
+                </span>
+              }
+              className='p-1'
+            >
+              {vendorModels.map(renderModelItem)}
+            </CommandGroup>
+          ))
         ) : (
           <CommandGroup className='p-1'>
-            {filteredModels.map((model) => (
-              <CommandItem
-                className={cn(
-                  modelGroupSelectorLayoutClasses.modelItem,
-                  selectedModel === model.value
-                    ? modelGroupSelectorLayoutClasses.selectedModelItem
-                    : modelGroupSelectorLayoutClasses.unselectedModelItem
-                )}
-                key={model.value}
-                onSelect={handleModelChange}
-                ref={
-                  selectedModel === model.value
-                    ? selectedModelOptionRef
-                    : undefined
-                }
-                value={model.value}
-              >
-                <span
-                  className={cn(
-                    'min-w-0 truncate',
-                    selectedModel === model.value
-                      ? modelGroupSelectorLayoutClasses.selectedModelText
-                      : modelGroupSelectorLayoutClasses.unselectedModelText
-                  )}
-                >
-                  {model.label}
-                </span>
-                <Check
-                  className={cn(
-                    'size-3.5 shrink-0',
-                    selectedModel === model.value ? 'opacity-100' : 'opacity-0'
-                  )}
-                />
-              </CommandItem>
-            ))}
+            {filteredModels.map(renderModelItem)}
           </CommandGroup>
         )}
       </CommandList>

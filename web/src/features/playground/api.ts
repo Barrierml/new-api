@@ -22,6 +22,8 @@ import { API_ENDPOINTS } from './constants'
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
+  ImageGenerationRequest,
+  ImageGenerationResponse,
   ModelOption,
   GroupOption,
 } from './types'
@@ -79,4 +81,20 @@ export async function getUserGroups(): Promise<GroupOption[]> {
     ratio: info.ratio,
     desc: info.desc,
   }))
+}
+
+/**
+ * Generate image(s) from a prompt
+ */
+export async function generateImage(
+  params: ImageGenerationRequest
+): Promise<ImageGenerationResponse> {
+  const res = await api.post(API_ENDPOINTS.IMAGE_GENERATIONS, {
+    model: params.model,
+    prompt: params.prompt,
+    n: params.n || 1,
+    size: params.size || '1024x1024',
+    group: params.group,
+  })
+  return res.data
 }

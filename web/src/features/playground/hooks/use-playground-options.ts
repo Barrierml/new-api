@@ -35,9 +35,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
+import { getPricing } from '@/features/pricing/api'
 
 import { getUserGroups, getUserModels } from '../api'
 import {
@@ -47,6 +49,8 @@ import {
   shouldClearModelForGroup,
 } from '../lib'
 import type { GroupOption, ModelOption, PlaygroundConfig } from '../types'
+
+export type VendorInfo = { name: string; icon: string }
 
 type UsePlaygroundOptionsParams = {
   currentGroup: string
@@ -67,6 +71,26 @@ export function usePlaygroundOptions({
   updateConfig,
 }: UsePlaygroundOptionsParams) {
   const { t } = useTranslation()
+
+  const { data: pricingData } = useQuery({
+    queryKey: ['pricing'],
+    queryFn: getPricing,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const vendorMap = useMemo(() => {
+    if (!pricingData?.data) return undefined
+    const map = new Map<string, VendorInfo>()
+    for (const model of pricingData.data) {
+      if (model.vendor_name && !map.has(model.model_name)) {
+        map.set(model.model_name, {
+          name: model.vendor_name,
+          icon: model.vendor_icon || '',
+        })
+      }
+    }
+    return map.size > 0 ? map : undefined
+  }, [pricingData])
 
   const {
     data: modelsData,
@@ -139,5 +163,6 @@ export function usePlaygroundOptions({
 
   return {
     isLoadingModels,
+    vendorMap,
   }
 }

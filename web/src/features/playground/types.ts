@@ -149,3 +149,22 @@ export interface GroupOption {
   ratio: number
   desc?: string
 }
+
+// Image generation types
+export interface ImageGenerationRequest {
+  model: string
+  prompt: string
+  n?: number
+  size?: string
+  group?: string
+}
+
+export interface ImageGenerationResponse {
+  data: Array<{
+    url?: string
+    b64_json?: string
+    revised_prompt?: string
+  }>
+}
+
+export type PlaygroundTab = 'chat' | 'image'

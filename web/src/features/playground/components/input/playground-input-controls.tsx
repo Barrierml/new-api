@@ -25,6 +25,7 @@ import { ModelGroupSelector } from '@/components/model-group-selector'
 
 import { getInputControlState } from '../../lib'
 import type { GroupOption, ModelOption } from '../../types'
+import type { VendorInfo } from '../../hooks/use-playground-options'
 
 type PlaygroundInputControlsProps = {
   disabled?: boolean
@@ -39,6 +40,7 @@ type PlaygroundInputControlsProps = {
   onStop?: () => void
   text: string
   tools: ReactNode
+  vendorMap?: Map<string, VendorInfo>
 }
 
 export function PlaygroundInputControls({
@@ -54,6 +56,7 @@ export function PlaygroundInputControls({
   onStop,
   text,
   tools,
+  vendorMap,
 }: PlaygroundInputControlsProps) {
   const { t } = useTranslation()
   const { canSubmit, isSelectorDisabled, shouldShowStop } =
@@ -76,6 +79,7 @@ export function PlaygroundInputControls({
       groups={groups}
       onGroupChange={onGroupChange}
       disabled={isSelectorDisabled}
+      vendorMap={vendorMap}
     />
   )
 
