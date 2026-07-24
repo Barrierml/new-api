@@ -37,6 +37,7 @@ LOCAL_PSQL = shlex.split(
 )
 LOCAL_PSQL_RO = LOCAL_PSQL + ["-At"]
 QUOTA_PER_USD = 500_000
+BALANCE_FACTOR = Decimal("3") / Decimal("2")  # PAR wallet -> Tako wallet multiplier
 QUOTA_INT32_MAX = 2_147_483_647
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 # PAR expires_at NULL means unlimited; new-api needs a concrete end_time.
@@ -108,7 +109,8 @@ def extract(env):
     with prod_conn(env, "PAR_PG") as cx, cx.cursor() as cur:
         cur.execute("""SELECT id, numeric_id, name, email, is_admin, password_hash,
                               EXTRACT(EPOCH FROM created_at)::bigint
-                       FROM par_users""")
+                       FROM par_users
+                       WHERE COALESCE(is_admin, false) = false""")
         data["users"] = cur.fetchall()
         cur.execute("""SELECT k.user_id, k.par_key, k.sapi_user_id, k.is_primary,
                               EXTRACT(EPOCH FROM k.created_at)::bigint
@@ -142,72 +144,197 @@ def extract(env):
 
 # ---------------------------------------------------------------- phases
 
+
 def phase_users(data, dry):
-    # map PAR numeric_id -> plan name (active subscription) and sapi balance
+    """Insert missing non-admin users and refresh wallet/password/group.
+
+    Rules for tonight's cutover:
+    - skip admins (already filtered in extract)
+    - wallet quota = max(0, round(sapi_balance * 1.5 * 500000)) and OVERWRITE
+    - bcrypt password hashes are synced so users can log in with PAR password
+    - argon2 / empty passwords are not force-overwritten for existing users
+    - existing users are updated in place; missing users are inserted
+    """
     plan_by_user = {nid: pname for nid, pname, _, _ in data["subscriptions"]}
     sapi_by_user = {}
     for uid_uuid, par_key, sapi_uid, _prim, _ts in data["keys"]:
-        sapi_by_user.setdefault(uid_uuid, sapi_uid)
+        if uid_uuid not in sapi_by_user and sapi_uid:
+            sapi_by_user[uid_uuid] = sapi_uid
 
-    existing_users = {}
-    for row in local_query('SELECT id, username, COALESCE(remark,\'\') FROM users'):
-        parts = row.split("|", 2)
-        existing_users.setdefault(parts[1], parts[0])
-    migrated = {r.split("|")[2].split()[0] for r in local_query(
-        "SELECT id, username, remark FROM users WHERE remark LIKE 'par:%'") if len(r.split("|")) >= 3}
-    migrated_nids = {int(m.split(":")[1]) for m in migrated if m.startswith("par:")}
-
-    plan_group = {"Mini": "mini", "Pro mini": "pro-mini", "Pro x1": "pro-x1",
-                  "Pro x2": "pro-x2", "Pro x3": "pro-x3", "Pro x4": "pro-x4"}
-
-    rows, report = [], {"bcrypt": 0, "reset_flag": [], "no_sapi": [], "negative": [],
-                        "clamped": [], "username_fallback": [], "skipped_existing": 0}
-    import bcrypt as _bc, secrets as _sec
-    used_usernames = set(existing_users.keys())
-    for uuid, nid, name, email, is_admin, pw_hash, created_ts in data["users"]:
-        if nid in migrated_nids:
-            report["skipped_existing"] += 1
+    # existing tako users: username -> id, and par_nid -> row info
+    existing_by_username = {}
+    existing_by_nid = {}
+    for row in local_query(
+        "SELECT id, username, COALESCE(remark,''), COALESCE(password,''), quota, \"group\" FROM users"
+    ):
+        parts = row.split("|", 5)
+        if len(parts) < 6:
             continue
+        uid, username, remark, password, quota_s, group = parts
+        existing_by_username[username] = uid
+        if remark.startswith("par:"):
+            try:
+                nid = int(remark.split()[0].split(":", 1)[1])
+            except Exception:
+                continue
+            existing_by_nid[nid] = {
+                "id": int(uid),
+                "username": username,
+                "password": password,
+                "quota": int(quota_s or 0),
+                "group": group,
+                "remark": remark,
+            }
+
+    plan_group = {
+        "Mini": "mini",
+        "Pro mini": "pro-mini",
+        "Pro x1": "pro-x1",
+        "Pro x2": "pro-x2",
+        "Pro x3": "pro-x3",
+        "Pro x4": "pro-x4",
+    }
+
+    import bcrypt as _bc
+    import secrets as _sec
+
+    used_usernames = set(existing_by_username.keys())
+    inserts = []
+    updates = []
+    report = {
+        "skipped_admin": 0,
+        "insert_candidates": 0,
+        "update_candidates": 0,
+        "bcrypt_sync": 0,
+        "argon2_reset_needed": [],
+        "empty_password": [],
+        "no_sapi": [],
+        "negative": [],
+        "clamped": [],
+        "username_fallback": [],
+        "balance_changes": [],
+        "sum_old_quota": 0,
+        "sum_new_quota": 0,
+        "inserted": 0,
+        "updated": 0,
+    }
+
+    for uuid, nid, name, email, is_admin, pw_hash, created_ts in data["users"]:
+        if is_admin:
+            report["skipped_admin"] += 1
+            continue
+
         email = (email or "").strip()
-        if email and len(email) <= 20 and email.lower() not in {u.lower() for u in used_usernames}:
-            username = email
+        existing = existing_by_nid.get(nid)
+
+        # username selection only for inserts
+        if existing is None:
+            if email and len(email) <= 20 and email.lower() not in {u.lower() for u in used_usernames}:
+                username = email
+            else:
+                username = f"u{nid}"
+                report["username_fallback"].append((nid, email))
+            # avoid collisions with already planned inserts
+            base = username
+            i = 2
+            while username in used_usernames:
+                username = f"{base}_{i}"
+                i += 1
+            used_usernames.add(username)
         else:
-            username = f"u{nid}"
-            report["username_fallback"].append((nid, email))
-        used_usernames.add(username)
+            username = existing["username"]
+
+        # password handling
+        pw_kind = "empty"
+        password = None
         if pw_hash and pw_hash.startswith("$2"):
+            pw_kind = "bcrypt"
             password = pw_hash
-            report["bcrypt"] += 1
+            report["bcrypt_sync"] += 1
+        elif pw_hash and pw_hash.startswith("$argon2"):
+            pw_kind = "argon2"
+            report["argon2_reset_needed"].append((nid, email, name))
+            if existing is None:
+                password = _bc.hashpw(_sec.token_urlsafe(24).encode(), _bc.gensalt()).decode()
         else:
-            password = _bc.hashpw(_sec.token_urlsafe(24).encode(), _bc.gensalt()).decode()
-            report["reset_flag"].append((nid, email, "argon2" if pw_hash else "oauth"))
+            report["empty_password"].append((nid, email, name))
+            if existing is None:
+                password = _bc.hashpw(_sec.token_urlsafe(24).encode(), _bc.gensalt()).decode()
+
+        # wallet balance * 1.5
         sapi_uid = sapi_by_user.get(uuid)
         balance = data["sapi_balance"].get(sapi_uid, Decimal(0)) if sapi_uid else Decimal(0)
         if not sapi_uid:
             report["no_sapi"].append((nid, email))
         if balance < 0:
             report["negative"].append((nid, email, str(balance)))
-        quota = int((balance * QUOTA_PER_USD).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+            balance = Decimal(0)
+        quota = int((balance * BALANCE_FACTOR * QUOTA_PER_USD).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         quota = max(0, quota)
         if quota > QUOTA_INT32_MAX:
             report["clamped"].append((nid, email, quota))
             quota = QUOTA_INT32_MAX
+
         group = plan_group.get(plan_by_user.get(nid, ""), "default")
-        role = 10 if is_admin else 1
         remark = f"par:{nid} uuid:{uuid}"
-        rows.append(f"({lit(username)},{lit(password)},{lit((name or '')[:20])},{role},1,"
-                    f"{lit(email)},{quota},0,{lit(group)},{lit('m'+str(nid))},{lit(remark)},{created_ts})")
+        if pw_kind == "argon2":
+            remark += " pw_reset:argon2"
+        elif pw_kind == "empty":
+            remark += " pw_reset:empty"
+
+        if existing is None:
+            report["insert_candidates"] += 1
+            inserts.append(
+                f"({lit(username)},{lit(password)},{lit((name or '')[:20])},1,1,"
+                f"{lit(email)},{quota},0,{lit(group)},{lit('m'+str(nid))},{lit(remark)},{created_ts})"
+            )
+            report["balance_changes"].append({
+                "nid": nid, "email": email, "action": "insert",
+                "old_quota": 0, "new_quota": quota, "balance": str(balance),
+            })
+            report["sum_new_quota"] += quota
+        else:
+            report["update_candidates"] += 1
+            old_quota = existing["quota"]
+            report["sum_old_quota"] += old_quota
+            report["sum_new_quota"] += quota
+            report["balance_changes"].append({
+                "nid": nid, "email": email, "action": "update",
+                "old_quota": old_quota, "new_quota": quota, "balance": str(balance),
+                "delta": quota - old_quota,
+            })
+            set_parts = [
+                f"quota={quota}",
+                f"\"group\"={lit(group)}",
+                f"remark={lit(remark)}",
+            ]
+            # only overwrite password when PAR has a usable bcrypt hash
+            if password is not None and pw_kind == "bcrypt":
+                set_parts.append(f"password={lit(password)}")
+            if email:
+                set_parts.append(f"email={lit(email)}")
+            if name:
+                set_parts.append(f"display_name={lit((name or '')[:20])}")
+            updates.append(f"UPDATE users SET {', '.join(set_parts)} WHERE id={existing['id']};")
 
     sql = ""
-    for i in range(0, len(rows), 50):
-        batch = ",\n".join(rows[i:i+50])
-        sql += ("INSERT INTO users (username,password,display_name,role,status,email,quota,"
-                "used_quota,\"group\",aff_code,remark,created_at) VALUES\n" + batch +
-                "\nON CONFLICT (username) DO NOTHING;\n")
+    for i in range(0, len(inserts), 50):
+        batch = ",\n".join(inserts[i:i+50])
+        sql += (
+            "INSERT INTO users (username,password,display_name,role,status,email,quota,"
+            "used_quota,\"group\",aff_code,remark,created_at) VALUES\n" + batch +
+            "\nON CONFLICT (username) DO NOTHING;\n"
+        )
+    if updates:
+        sql += "\n".join(updates) + "\n"
+
     if not dry and sql:
         local_sql(sql)
-    report["inserted"] = len(rows)
+    report["inserted"] = len(inserts)
+    report["updated"] = len(updates)
+    # keep only top balance deltas in printed report later; store all for json
     return report
+
 
 
 def build_uid_map():
@@ -240,39 +367,89 @@ def phase_tokens(data, uid_map, dry):
     return {"inserted": len(rows)}
 
 
+
 def phase_subscriptions(data, uid_map, dry):
     plans = {}
-    for row in local_query("SELECT id, title, upgrade_group, downgrade_group, total_amount FROM subscription_plans"):
-        pid, title, ug, dg, total = row.split("|")
-        plans[title] = {"id": int(pid), "ug": ug, "dg": dg, "total": int(total)}
+    for row in local_query(
+        "SELECT id, title, upgrade_group, downgrade_group, total_amount, COALESCE(sub_quota_limits,'') "
+        "FROM subscription_plans"
+    ):
+        parts = row.split("|")
+        if len(parts) < 6:
+            continue
+        pid, title, ug, dg, total, limits = parts
+        plans[title] = {
+            "id": int(pid),
+            "ug": ug,
+            "dg": dg,
+            "total": int(total),
+            "limits": limits,
+        }
     last_reset, next_reset = monday_anchors()
     now_ts = int(datetime.now(timezone.utc).timestamp())
-    rows, report = [], {"null_expiry": []}
+    rows, report = [], {
+        "null_expiry": [],
+        "inserted": 0,
+        "already_active": 0,
+        "limits_backfill": 0,
+        "missing_user": [],
+        "missing_plan": [],
+    }
     for nid, pname, starts_at, expires_at in data["subscriptions"]:
         new_uid = uid_map.get(nid)
         plan = plans.get(pname)
-        if not new_uid or not plan:
+        if not new_uid:
+            report["missing_user"].append((nid, pname))
+            continue
+        if not plan:
+            report["missing_plan"].append((nid, pname))
             continue
         end = expires_at if expires_at else FAR_FUTURE_END
         if not expires_at:
             report["null_expiry"].append((nid, pname))
+        # check whether active row already exists
+        exists = local_query(
+            f"SELECT id FROM user_subscriptions WHERE user_id={new_uid} "
+            f"AND plan_id={plan['id']} AND status='active' LIMIT 1"
+        )
+        if exists:
+            report["already_active"] += 1
+            continue
         rows.append(
-            f"SELECT {new_uid},{plan['id']},{plan['total']},0,{starts_at},{end},"
+            f"({new_uid},{plan['id']},{plan['total']},0,{starts_at},{end},"
             f"'active','migration',{last_reset},{next_reset},{lit(plan['ug'])},'default',"
-            f"{lit(plan['dg'])},false,{now_ts},{now_ts}\nWHERE NOT EXISTS ("
-            f"SELECT 1 FROM user_subscriptions WHERE user_id={new_uid} "
-            f"AND plan_id={plan['id']} AND status='active')")
+            f"{lit(plan['dg'])},false,{lit(plan['limits'])},{now_ts},{now_ts})"
+        )
     sql = ""
-    for r in rows:
-        sql += ("INSERT INTO user_subscriptions (user_id,plan_id,amount_total,amount_used,"
+    if rows:
+        for i in range(0, len(rows), 50):
+            batch = ",\n".join(rows[i:i+50])
+            sql += (
+                "INSERT INTO user_subscriptions (user_id,plan_id,amount_total,amount_used,"
                 "start_time,end_time,status,source,last_reset_time,next_reset_time,"
                 "upgrade_group,prev_user_group,downgrade_group,allow_wallet_overflow,"
-                "created_at,updated_at)\n" + r + ";\n")
+                "sub_quota_limits,created_at,updated_at) VALUES\n" + batch + ";\n"
+            )
+    # always backfill empty plan snapshots for active subs from plan definition
+    sql += (
+        "UPDATE user_subscriptions us SET "
+        "sub_quota_limits = sp.sub_quota_limits, updated_at = "
+        f"{now_ts} "
+        "FROM subscription_plans sp "
+        "WHERE us.plan_id = sp.id AND us.status = 'active' "
+        "AND (us.sub_quota_limits IS NULL OR us.sub_quota_limits = '' OR us.sub_quota_limits = '{}');\n"
+    )
+    empty_before = local_query(
+        "SELECT count(*) FROM user_subscriptions WHERE status='active' "
+        "AND (sub_quota_limits IS NULL OR sub_quota_limits='' OR sub_quota_limits='{}')"
+    )
+    report["limits_backfill"] = int(empty_before[0]) if empty_before else 0
     if not dry and sql:
         local_sql(sql)
     report["inserted"] = len(rows)
     report["next_reset"] = next_reset
     return report
+
 
 
 def phase_pricing(data, dry):
@@ -344,10 +521,36 @@ def phase_redemptions(data, dry):
 
 # ---------------------------------------------------------------- main
 
+def _print_users_report(rep):
+    print("users:")
+    print(f"  insert={rep.get('insert_candidates')} update={rep.get('update_candidates')} "
+          f"bcrypt_sync={rep.get('bcrypt_sync')}")
+    print(f"  sum_old_quota={rep.get('sum_old_quota')} sum_new_quota={rep.get('sum_new_quota')} "
+          f"factor={BALANCE_FACTOR}")
+    argon = rep.get("argon2_reset_needed") or []
+    print(f"  argon2_reset_needed={len(argon)}")
+    for item in argon[:10]:
+        print(f"    - nid={item[0]} email={item[1]} name={item[2]}")
+    empty = rep.get("empty_password") or []
+    print(f"  empty_password={len(empty)}")
+    changes = rep.get("balance_changes") or []
+    ranked = sorted(
+        changes,
+        key=lambda x: abs(int(x.get("delta", x.get("new_quota", 0) - x.get("old_quota", 0)))),
+        reverse=True,
+    )
+    print("  top balance changes:")
+    for c in ranked[:12]:
+        old_q = c.get("old_quota", 0)
+        new_q = c.get("new_quota", 0)
+        print(f"    - nid={c['nid']} email={c.get('email')} "
+              f"{old_q}->{new_q} (bal={c.get('balance')}) action={c.get('action')}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="all",
-                    choices=["users", "tokens", "subscriptions", "pricing", "redemptions", "all"])
+    ap.add_argument("--phase", default="cutover",
+                    choices=["users", "tokens", "subscriptions", "pricing", "redemptions", "all", "cutover"])
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -359,23 +562,26 @@ def main():
           f"models={len(data['models'])} sapi_balances={len(data['sapi_balance'])}")
 
     full = {}
-    phases = [args.phase] if args.phase != "all" else \
-        ["users", "tokens", "subscriptions", "pricing", "redemptions"]
+    if args.phase == "cutover":
+        phases = ["users", "tokens", "subscriptions"]
+    elif args.phase == "all":
+        phases = ["users", "tokens", "subscriptions", "pricing", "redemptions"]
+    else:
+        phases = [args.phase]
+
     uid_map = None
     for ph in phases:
         if ph == "users":
             full["users"] = phase_users(data, args.dry_run)
-            print(f"users: {json.dumps(full['users'], default=str)[:400]}")
-        if not args.dry_run and uid_map is None and ph in ("tokens", "subscriptions"):
+            _print_users_report(full["users"])
+        if ph in ("tokens", "subscriptions"):
             uid_map = build_uid_map()
-        elif ph in ("tokens", "subscriptions") and args.dry_run:
-            uid_map = uid_map or {}
         if ph == "tokens":
-            full["tokens"] = phase_tokens(data, uid_map or build_uid_map(), args.dry_run)
+            full["tokens"] = phase_tokens(data, uid_map, args.dry_run)
             print(f"tokens: {full['tokens']}")
         if ph == "subscriptions":
-            full["subscriptions"] = phase_subscriptions(data, uid_map or build_uid_map(), args.dry_run)
-            print(f"subscriptions: {json.dumps(full['subscriptions'], default=str)[:300]}")
+            full["subscriptions"] = phase_subscriptions(data, uid_map, args.dry_run)
+            print(f"subscriptions: {json.dumps(full['subscriptions'], default=str)[:500]}")
         if ph == "pricing":
             full["pricing"] = phase_pricing(data, args.dry_run)
             print(f"pricing: {full['pricing']}")

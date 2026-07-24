@@ -238,7 +238,7 @@ export function RechargeFormCard({
   return (
     <TitledCard
       title={t('Balance Top-Up')}
-      description={t('Pay-as-you-go quota, ¥1 = $2 quota, never expires')}
+      description={t('Pay-as-you-go quota, ¥1 = $3 quota, never expires')}
       icon={<WalletCards className='h-4 w-4' />}
       iconTone='success'
       disableHoverEffect

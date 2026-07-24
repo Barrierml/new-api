@@ -6,7 +6,7 @@ of redemption codes in new-api (admin API) and top up CatFK stock via catfk-cli.
 
 Goods map (from PAR's catfkPlans.ts):
   plan goods  — deliver subscription-type codes (plan grant on redeem)
-  topup goods — deliver quota codes at ¥1 = $2 (¥20/50/100/200 -> $40/100/200/400)
+  topup goods — deliver quota codes at ¥1 = $3 (¥20/50/100/200 -> $60/150/300/600)
 
 Usage:
   python3 catfk-stock-sync.py [--once] [--loop SECONDS] [--confirm]
