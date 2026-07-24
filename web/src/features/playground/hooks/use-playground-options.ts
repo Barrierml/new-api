@@ -80,13 +80,19 @@ export function usePlaygroundOptions({
 
   const vendorMap = useMemo(() => {
     if (!pricingData?.data) return undefined
+    const vendorLookup = new Map<number, { name: string; icon: string }>()
+    if (pricingData.vendors) {
+      for (const v of pricingData.vendors) {
+        vendorLookup.set(v.id, { name: v.name, icon: v.icon || '' })
+      }
+    }
     const map = new Map<string, VendorInfo>()
     for (const model of pricingData.data) {
-      if (model.vendor_name && !map.has(model.model_name)) {
-        map.set(model.model_name, {
-          name: model.vendor_name,
-          icon: model.vendor_icon || '',
-        })
+      if (model.vendor_id && !map.has(model.model_name)) {
+        const vendor = vendorLookup.get(model.vendor_id)
+        if (vendor) {
+          map.set(model.model_name, vendor)
+        }
       }
     }
     return map.size > 0 ? map : undefined
