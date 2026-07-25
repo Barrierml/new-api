@@ -318,7 +318,7 @@ export function SubscriptionsMutateDrawer({
                 )}
               />
 
-              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
                 <FormField
                   control={form.control}
                   name='price_amount'
@@ -342,6 +342,40 @@ export function SubscriptionsMutateDrawer({
                         {t(
                           'Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.'
                         )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='currency'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Currency')}</FormLabel>
+                      <Select
+                        items={[
+                          { value: 'CNY', label: '¥ CNY' },
+                          { value: 'USD', label: '$ USD' },
+                        ]}
+                        onValueChange={field.onChange}
+                        value={field.value || 'CNY'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            <SelectItem value='CNY'>¥ CNY</SelectItem>
+                            <SelectItem value='USD'>$ USD</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {t('Display currency of the plan price.')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

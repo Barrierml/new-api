@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "Один API",
     "footer.columns.related.title": "Связанные проекты",
     "footer.defaultCopyright": "Все права защищены.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
+    "footer.newapi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Для каналов, добавленных после 10 мая 2025 г., не нужно удалять \".\" из имён моделей при развёртывании",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Для частных развертываний, формат: https://fastgpt.run/api/openapi",
     "Force a syntactically valid JSON response": "Принудительно возвращать синтаксически корректный JSON",
@@ -5352,5 +5352,6 @@
     "Desktop app · Tauri 2 · MIT": "Десктопное приложение · Tauri 2 · MIT",
     "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Одно десктопное приложение для управления и запуска Claude Code, Codex, Gemini CLI и других — со встроенным провайдером Tako, работает из коробки.",
     "Star on GitHub": "Поставить звезду на GitHub"
-  }
+  },
+  "Display currency of the plan price.": "Валюта отображения цены плана."
 }

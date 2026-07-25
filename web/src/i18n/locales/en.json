@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Related Projects",
     "footer.defaultCopyright": "All rights reserved.",
-    "footer.new\u0061pi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
+    "footer.newapi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment",
     "For private deployments, format: https://fastgpt.run/api/openapi": "For private deployments, format: https://fastgpt.run/api/openapi",
     "Force a syntactically valid JSON response": "Force a syntactically valid JSON response",
@@ -5352,5 +5352,6 @@
     "Desktop app · Tauri 2 · MIT": "Desktop app · Tauri 2 · MIT",
     "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.",
     "Star on GitHub": "Star on GitHub"
-  }
+  },
+  "Display currency of the plan price.": "Display currency of the plan price."
 }

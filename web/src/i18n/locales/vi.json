@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Các Dự Án Liên Quan",
     "footer.defaultCopyright": "Bản quyền được bảo lưu.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
+    "footer.newapi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Đối với các kênh được thêm sau ngày 10 tháng 5 năm 2025, không cần loại bỏ \".\" khỏi tên mô hình trong quá trình triển khai",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Đối với các triển khai riêng tư, định dạng: https://fastgpt.run/api/openapi",
     "Force a syntactically valid JSON response": "Buộc phản hồi JSON hợp lệ về cú pháp",
@@ -5352,5 +5352,6 @@
     "Desktop app · Tauri 2 · MIT": "Ứng dụng desktop · Tauri 2 · MIT",
     "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Một ứng dụng desktop để quản lý và khởi chạy Claude Code, Codex, Gemini CLI và hơn thế nữa — tích hợp sẵn Tako provider, dùng ngay.",
     "Star on GitHub": "Star trên GitHub"
-  }
+  },
+  "Display currency of the plan price.": "Đơn vị tiền tệ hiển thị của giá gói."
 }

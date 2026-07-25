@@ -260,6 +260,13 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 	req.Plan.Id = id
+	if strings.TrimSpace(req.Plan.Currency) == "" {
+		// 更新请求未带币种时保留数据库现值,避免被空值默认成 USD 覆盖(前端表单漏传曾导致全站套餐币种被改)。
+		var existing model.SubscriptionPlan
+		if err := model.DB.Select("currency").Where("id = ?", id).First(&existing).Error; err == nil && existing.Currency != "" {
+			req.Plan.Currency = existing.Currency
+		}
+	}
 	if cur, ok := normalizePlanCurrency(req.Plan.Currency); ok {
 		req.Plan.Currency = cur
 	} else {

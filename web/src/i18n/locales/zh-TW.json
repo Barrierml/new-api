@@ -2069,7 +2069,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相關項目",
     "footer.defaultCopyright": "版權所有。",
-    "footer.new\u0061pi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
+    "footer.newapi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "對於 2025 年 5 月 10 日之後新增的渠道，在部署時無需從模型名稱中移除 \".\"",
     "For private deployments, format: https://fastgpt.run/api/openapi": "對於私有部署，格式為：https://fastgpt.run/api/openapi",
     "Force a syntactically valid JSON response": "強制返回語法合法的 JSON",
@@ -5352,5 +5352,6 @@
     "Desktop app · Tauri 2 · MIT": "桌面應用 · Tauri 2 · MIT",
     "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "一個桌面應用管理並啟動 Claude Code、Codex、Gemini CLI 等工具,內建 Tako 供應商,開箱即用。",
     "Star on GitHub": "在 GitHub 上 Star"
-  }
+  },
+  "Display currency of the plan price.": "套餐價格的展示幣種。"
 }
