@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
+import { getRankings } from '@/features/rankings/api'
 import { useStatus } from '@/hooks/use-status'
 
 import { getPricing } from '../api'
@@ -31,6 +32,22 @@ export function usePricingData() {
     queryFn: getPricing,
     staleTime: 5 * 60 * 1000,
   })
+
+  // 模型周用量(用于模型广场按使用量排序);匿名访问 rankings 会 401,静默回退名称排序
+  const { data: rankingsData } = useQuery({
+    queryKey: ['rankings', 'week'],
+    queryFn: () => getRankings('week'),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+
+  const usageByModel = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const m of rankingsData?.data?.models ?? []) {
+      map.set(m.model_name, (map.get(m.model_name) ?? 0) + m.total_tokens)
+    }
+    return map
+  }, [rankingsData])
 
   // Ensure rates never reach zero to prevent division errors
   const priceRate = useMemo(
@@ -69,6 +86,7 @@ export function usePricingData() {
     usableGroup: data?.usable_group ?? {},
     endpointMap: data?.supported_endpoint ?? {},
     autoGroups: data?.auto_groups ?? [],
+    usageByModel,
     isLoading,
     error,
     refetch,

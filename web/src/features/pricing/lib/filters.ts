@@ -110,11 +110,28 @@ function getModelPrice(model: PricingModel): number {
  */
 export function sortModels(
   models: PricingModel[],
-  sortBy: string
+  sortBy: string,
+  usageByModel?: Map<string, number>
 ): PricingModel[] {
   const sorted = [...models]
 
   switch (sortBy) {
+    case SORT_OPTIONS.USAGE:
+      // 无用量数据(匿名/接口失败)时回退名称排序
+      if (!usageByModel || usageByModel.size === 0) {
+        sorted.sort((a, b) =>
+          (a.model_name || '').localeCompare(b.model_name || '')
+        )
+        break
+      }
+      sorted.sort((a, b) => {
+        const diff =
+          (usageByModel.get(b.model_name || '') ?? 0) -
+          (usageByModel.get(a.model_name || '') ?? 0)
+        if (diff !== 0) return diff
+        return (a.model_name || '').localeCompare(b.model_name || '')
+      })
+      break
     case SORT_OPTIONS.NAME:
       sorted.sort((a, b) =>
         (a.model_name || '').localeCompare(b.model_name || '')
@@ -144,7 +161,8 @@ export function filterAndSortModels(
     endpointType: string
     tag: string
     sortBy: string
-  }
+  },
+  usageByModel?: Map<string, number>
 ): PricingModel[] {
   let result = filterBySearch(models, filters.search)
   result = filterByVendor(result, filters.vendor)
@@ -152,7 +170,7 @@ export function filterAndSortModels(
   result = filterByQuotaType(result, filters.quotaType)
   result = filterByEndpointType(result, filters.endpointType)
   result = filterByTag(result, filters.tag)
-  result = sortModels(result, filters.sortBy)
+  result = sortModels(result, filters.sortBy, usageByModel)
 
   return result
 }
