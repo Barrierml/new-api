@@ -303,8 +303,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
           <div className='flex min-w-0 flex-col gap-0.5'>
             <span className='truncate font-mono text-xs tabular-nums'>
               {formatTimestampToDate(timestamp)}
-            </span>
-            <StatusBadge
+            </span>            <StatusBadge
               label={t(config.label)}
               variant={config.color as StatusBadgeProps['variant']}
               size='sm'
@@ -526,13 +525,30 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <span className='text-muted-foreground max-w-[100px] truncate text-sm hover:underline' />
+                      <span className='flex max-w-[140px] flex-col text-left' />
                     }
                   >
-                    {sensitiveVisible ? log.username : '••••'}
+                    {sensitiveVisible ? (
+                      <>
+                        <span className='truncate text-sm hover:underline'>
+                          {log.user_email || log.username}
+                        </span>
+                        {log.user_email && log.user_email !== log.username && (
+                          <span className='text-muted-foreground truncate text-xs'>
+                            {log.username}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      '••••'
+                    )}
                   </TooltipTrigger>
-                  {sensitiveVisible && log.username.length > 12 && (
-                    <TooltipContent side='top'>{log.username}</TooltipContent>
+                  {sensitiveVisible && (
+                    <TooltipContent side='top'>
+                      {log.user_email
+                        ? `${log.user_email} (${log.username})`
+                        : log.username}
+                    </TooltipContent>
                   )}
                 </Tooltip>
               </TooltipProvider>
@@ -541,6 +557,56 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         },
       }
     )
+  }
+
+  if (!isAdmin) {
+    // 用户端日志也展示渠道名称,hover 显示渠道倍率(channel_ratio 在 other 顶层,
+    // 不属 admin_info,后端已对普通用户保留;admin_info 本身已被后端剥离)
+    columns.push({
+      id: 'channel',
+      header: t('Channel'),
+      accessorFn: (row) => row.channel,
+      cell: function UserChannelCell({ row }) {
+        const log = row.original
+        if (!isDisplayableLogType(log.type)) return null
+        if (!log.channel) return null
+
+        const other = parseLogOther(log.other)
+        const channelRatio = other?.channel_ratio
+        const label = log.channel_name || `#${log.channel}`
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={<div className='inline-flex w-fit cursor-help' />}
+              >
+                <StatusBadge
+                  label={label}
+                  autoColor={label}
+                  copyText={label}
+                  size='sm'
+                  showDot={false}
+                  className='font-mono'
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className='space-y-1'>
+                  <p>{label}</p>
+                  {typeof channelRatio === 'number' &&
+                    channelRatio !== 1 &&
+                    channelRatio > 0 && (
+                      <p className='text-muted-foreground text-xs'>
+                        {t('Channel Ratio')}: {channelRatio}x
+                      </p>
+                    )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    })
   }
 
   columns.push({

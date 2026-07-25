@@ -72,6 +72,7 @@ type Log struct {
 	IsStream          bool   `json:"is_stream"`
 	ChannelId         int    `json:"channel" gorm:"index"`
 	ChannelName       string `json:"channel_name" gorm:"->"`
+	UserEmail         string `json:"user_email,omitempty" gorm:"->"`
 	TokenId           int    `json:"token_id" gorm:"default:0;index"`
 	Group             string `json:"group" gorm:"index"`
 	Ip                string `json:"ip" gorm:"index;default:''"`
@@ -115,7 +116,6 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
-		logs[i].ChannelName = ""
 		var otherMap map[string]interface{}
 		otherMap, _ = common.StrToMap(logs[i].Other)
 		if otherMap != nil {
@@ -556,6 +556,30 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		}
 	}
 
+	// Attach user emails so the admin user column can show email + username.
+	userIds := types.NewSet[int]()
+	for _, log := range logs {
+		if log.UserId != 0 {
+			userIds.Add(log.UserId)
+		}
+	}
+	if userIds.Len() > 0 {
+		var users []struct {
+			Id    int    `gorm:"column:id"`
+			Email string `gorm:"column:email"`
+		}
+		if err = DB.Table("users").Select("id, email").Where("id IN ?", userIds.Items()).Find(&users).Error; err != nil {
+			return logs, total, err
+		}
+		emailMap := make(map[int]string, len(users))
+		for _, user := range users {
+			emailMap[user.Id] = user.Email
+		}
+		for i := range logs {
+			logs[i].UserEmail = emailMap[logs[i].UserId]
+		}
+	}
+
 	return logs, total, err
 }
 
@@ -603,6 +627,31 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	if err != nil {
 		common.SysError("failed to search user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
+	}
+
+	// Attach channel names so the user-facing log view can show which channel
+	// served each request (channel_ratio already survives in `other`).
+	channelIds := types.NewSet[int]()
+	for _, log := range logs {
+		if log.ChannelId != 0 {
+			channelIds.Add(log.ChannelId)
+		}
+	}
+	if channelIds.Len() > 0 {
+		var channels []struct {
+			Id   int    `gorm:"column:id"`
+			Name string `gorm:"column:name"`
+		}
+		if err = DB.Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
+			return nil, 0, err
+		}
+		channelMap := make(map[int]string, len(channels))
+		for _, channel := range channels {
+			channelMap[channel.Id] = channel.Name
+		}
+		for i := range logs {
+			logs[i].ChannelName = channelMap[logs[i].ChannelId]
+		}
 	}
 
 	formatUserLogs(logs, startIdx)
