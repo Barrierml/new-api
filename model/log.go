@@ -746,6 +746,112 @@ func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return token
 }
 
+// UserDailyConsumeStat 按用户聚合一段时间内的消费日志,供运营总览"今日活跃用户"使用。
+type UserDailyConsumeStat struct {
+	UserId           int   `gorm:"column:user_id"`
+	Quota            int64 `gorm:"column:quota"`
+	PromptTokens     int64 `gorm:"column:prompt_tokens"`
+	CompletionTokens int64 `gorm:"column:completion_tokens"`
+	RequestCount     int64 `gorm:"column:request_count"`
+	LastUsedAt       int64 `gorm:"column:last_used_at"`
+}
+
+// SumConsumeQuotaByUser 一条 GROUP BY user_id 聚合出每个用户在 [start,end] 内的消费。
+func SumConsumeQuotaByUser(startTimestamp int64, endTimestamp int64) ([]UserDailyConsumeStat, error) {
+	var rows []UserDailyConsumeStat
+	err := LOG_DB.Model(&Log{}).
+		Select("user_id, COALESCE(SUM(quota), 0) AS quota, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, " +
+			"COALESCE(SUM(completion_tokens), 0) AS completion_tokens, COUNT(*) AS request_count, MAX(created_at) AS last_used_at").
+		Where("type = ? AND created_at >= ? AND created_at <= ?", LogTypeConsume, startTimestamp, endTimestamp).
+		Group("user_id").
+		Scan(&rows).Error
+	return rows, err
+}
+
+// GetRecentLogs 取某类型最新的 num 条日志(不跑 COUNT,供预览列表用)。
+// 附带 channel_name / user_email / user_display_name,attach 逻辑与 GetAllLogs 一致。
+func GetRecentLogs(logType int, num int) (logs []*Log, err error) {
+	if num <= 0 {
+		num = 10
+	}
+	order := "logs.created_at desc, logs.id desc"
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		order = clickHouseLogOrder("logs.")
+	}
+	if err = LOG_DB.Where("logs.type = ?", logType).Order(order).Limit(num).Find(&logs).Error; err != nil {
+		return nil, err
+	}
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		assignDisplayLogIds(logs, 0)
+	}
+
+	channelIds := types.NewSet[int]()
+	for _, log := range logs {
+		if log.ChannelId != 0 {
+			channelIds.Add(log.ChannelId)
+		}
+	}
+	if channelIds.Len() > 0 {
+		var channels []struct {
+			Id   int    `gorm:"column:id"`
+			Name string `gorm:"column:name"`
+		}
+		if common.MemoryCacheEnabled {
+			for _, channelId := range channelIds.Items() {
+				if cacheChannel, cacheErr := CacheGetChannel(channelId); cacheErr == nil {
+					channels = append(channels, struct {
+						Id   int    `gorm:"column:id"`
+						Name string `gorm:"column:name"`
+					}{
+						Id:   channelId,
+						Name: cacheChannel.Name,
+					})
+				}
+			}
+		} else {
+			if err = DB.Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
+				return logs, err
+			}
+		}
+		channelMap := make(map[int]string, len(channels))
+		for _, channel := range channels {
+			channelMap[channel.Id] = channel.Name
+		}
+		for i := range logs {
+			logs[i].ChannelName = channelMap[logs[i].ChannelId]
+		}
+	}
+
+	userIds := types.NewSet[int]()
+	for _, log := range logs {
+		if log.UserId != 0 {
+			userIds.Add(log.UserId)
+		}
+	}
+	if userIds.Len() > 0 {
+		var users []struct {
+			Id          int    `gorm:"column:id"`
+			Email       string `gorm:"column:email"`
+			DisplayName string `gorm:"column:display_name"`
+		}
+		if err = DB.Table("users").Select("id, email, display_name").Where("id IN ?", userIds.Items()).Find(&users).Error; err != nil {
+			return logs, err
+		}
+		emailMap := make(map[int]string, len(users))
+		displayNameMap := make(map[int]string, len(users))
+		for _, user := range users {
+			emailMap[user.Id] = user.Email
+			displayNameMap[user.Id] = user.DisplayName
+		}
+		for i := range logs {
+			logs[i].UserEmail = emailMap[logs[i].UserId]
+			logs[i].UserDisplayName = displayNameMap[logs[i].UserId]
+		}
+	}
+
+	return logs, nil
+}
+
 func CountOldLog(ctx context.Context, targetTimestamp int64) (int64, error) {
 	var total int64
 	if err := LOG_DB.WithContext(ctx).Model(&Log{}).Where("created_at < ?", targetTimestamp).Count(&total).Error; err != nil {

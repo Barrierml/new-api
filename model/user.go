@@ -362,6 +362,13 @@ func GetMaxUserId() int {
 	return user.Id
 }
 
+// CountUsers 统计未软删的用户总数(运营总览卡片用)。
+func CountUsers() (int64, error) {
+	var count int64
+	err := DB.Model(&User{}).Count(&count).Error
+	return count, err
+}
+
 func GetAllUsers(pageInfo *common.PageInfo, sortOptions ...UserSortOptions) (users []*User, total int64, err error) {
 	// Start transaction
 	tx := DB.Begin()

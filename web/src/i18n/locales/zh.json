@@ -5316,6 +5316,25 @@
     "View Plans": "查看套餐",
     "No active plan. Subscribe for weekly quota and better rates.": "尚未开通套餐,订阅后享每周额度与更优倍率。",
     "Weekly Quota": "周限额",
-    "Days Remaining": "剩余天数"
+    "Days Remaining": "剩余天数",
+    "Today's Consumption": "今日总消费",
+    "Today's Tokens": "今日 Token",
+    "Cached tokens not included": "不含缓存 Token",
+    "Active Users": "活跃用户",
+    "Users with consumption today": "今日有消费的用户",
+    "Concurrent Requests": "实时并发",
+    "In-flight relay requests on this node": "当前节点在途转发请求",
+    "Active Users Today": "今日活跃用户",
+    "Top 50 users by consumption today": "按今日消费排序,前 50 名",
+    "No active users today": "今日暂无活跃用户",
+    "5h Window": "5h 窗口",
+    "Weekly Usage": "周消费",
+    "Wallet Balance": "钱包余额",
+    "Recent Error Logs": "最近错误日志",
+    "Recent Consumption Logs": "最近消费流水",
+    "View All": "查看全部",
+    "No logs yet": "暂无日志",
+    "Reset:": "重置时间:",
+    "All users, since midnight (UTC+8)": "全部用户,UTC+8 零点至今"
   }
 }
