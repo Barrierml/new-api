@@ -29,6 +29,17 @@ func SetRouter(router *gin.Engine, assets WebAssets) {
 		apiStats.POST("/user-quota", controller.UserQuota)
 		apiStats.GET("/user-quota", controller.UserQuota)
 	}
+
+	// Legacy PAR OAuth callback compatibility: GitHub/Google OAuth Apps still
+	// have /par/user/auth/oauth/{provider}/callback registered as redirect URI.
+	// 302 to the SPA callback route, preserving code/state.
+	router.GET("/par/user/auth/oauth/:provider/callback", func(c *gin.Context) {
+		target := "/oauth/" + c.Param("provider")
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusFound, target)
+	})
 	frontendBaseUrl := os.Getenv("FRONTEND_BASE_URL")
 	if common.IsMasterNode && frontendBaseUrl != "" {
 		frontendBaseUrl = ""
