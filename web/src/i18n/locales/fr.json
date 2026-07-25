@@ -3080,7 +3080,7 @@
     "Not tested": "Non testé",
     "Not used for upstream training by default": "Non utilisé pour l'entraînement amont par défaut",
     "Not used yet": "Pas encore utilisé",
-    "Note": "Note",
+    "Note": "Remarque",
     "Notice": "Avis",
     "Notification Email": "E-mail de notification",
     "Notification Method": "Méthode de notification",
@@ -5335,6 +5335,22 @@
     "View All": "Tout voir",
     "No logs yet": "Aucun journal pour le moment",
     "Reset:": "Réinitialisation :",
-    "All users, since midnight (UTC+8)": "Tous les utilisateurs, depuis minuit (UTC+8)"
+    "All users, since midnight (UTC+8)": "Tous les utilisateurs, depuis minuit (UTC+8)",
+    "docs.hero.subtitle": "Une passerelle unique pour OpenAI, Claude et Gemini — du démarrage rapide à l’intégration avancée.",
+    "docs.desc.index": "Accueil de la documentation",
+    "docs.desc.overview": "Faites votre premier appel API en 5 minutes.",
+    "docs.desc.cli": "Lancez Claude Code, Codex ou Gemini CLI en une commande.",
+    "docs.desc.api": "Référence des points de terminaison OpenAI, Anthropic et Gemini.",
+    "docs.desc.integrations": "Connectez Claude Code, Codex, Gemini CLI et d’autres clients.",
+    "docs.home.popular": "Pages populaires",
+    "Official Open-Source Tools": "Outils open source officiels",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Conçus par l’équipe Tako — installation en un clic, préconfigurés pour cette passerelle.",
+    "Official tools, built in the open": "Des outils officiels, développés en open source",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "Notre lanceur et notre application de bureau sont open source — mettez une étoile, forkez-les, ou installez-les et codez.",
+    "Terminal launcher · npm": "Lanceur terminal · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "Une commande pour lancer Claude Code, Codex ou Gemini CLI avec l’authentification préconfigurée — aucune variable d’environnement à gérer.",
+    "Desktop app · Tauri 2 · MIT": "Application de bureau · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Une application de bureau pour gérer et lancer Claude Code, Codex, Gemini CLI et plus — avec le fournisseur Tako intégré, prête à l’emploi.",
+    "Star on GitHub": "Mettre une étoile sur GitHub"
   }
 }

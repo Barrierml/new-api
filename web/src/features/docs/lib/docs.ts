@@ -69,6 +69,27 @@ export const GROUP_LABEL_KEY: Record<DocGroup, string> = {
   integrations: 'docs.group.integrations',
 }
 
+// ── 分组展示元数据(着陆页卡片 / 侧边栏图标)───────────────────────────────────
+// icon 为 lucide 组件名,在 UI 层解析;descKey 为该组一句话介绍的 i18n key。
+
+export interface GroupMeta {
+  icon:
+    | 'rocket'
+    | 'terminal'
+    | 'book-open'
+    | 'blocks'
+    | 'house'
+  descKey: string
+}
+
+export const GROUP_META: Record<DocGroup, GroupMeta> = {
+  index: { icon: 'house', descKey: 'docs.desc.index' },
+  overview: { icon: 'rocket', descKey: 'docs.desc.overview' },
+  cli: { icon: 'terminal', descKey: 'docs.desc.cli' },
+  api: { icon: 'book-open', descKey: 'docs.desc.api' },
+  integrations: { icon: 'blocks', descKey: 'docs.desc.integrations' },
+}
+
 // ── Markdown 链接解析(把相对 .md 链接映射到 /docs 路由)─────────────────────────
 
 export function resolveMdLink(

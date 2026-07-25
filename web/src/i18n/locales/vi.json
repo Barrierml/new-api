@@ -5335,6 +5335,22 @@
     "View All": "Xem tất cả",
     "No logs yet": "Chưa có nhật ký",
     "Reset:": "Đặt lại:",
-    "All users, since midnight (UTC+8)": "Tất cả ngưới dùng, từ nửa đêm (UTC+8)"
+    "All users, since midnight (UTC+8)": "Tất cả ngưới dùng, từ nửa đêm (UTC+8)",
+    "docs.hero.subtitle": "Một cổng API thống nhất cho OpenAI, Claude và Gemini — từ bắt đầu nhanh đến tích hợp sâu.",
+    "docs.desc.index": "Trang tài liệu",
+    "docs.desc.overview": "Thực hiện lệnh gọi API đầu tiên trong 5 phút.",
+    "docs.desc.cli": "Khởi chạy Claude Code, Codex hoặc Gemini CLI bằng một lệnh.",
+    "docs.desc.api": "Tham chiếu endpoint cho giao thức OpenAI, Anthropic và Gemini.",
+    "docs.desc.integrations": "Kết nối Claude Code, Codex, Gemini CLI và các client khác.",
+    "docs.home.popular": "Trang phổ biến",
+    "Official Open-Source Tools": "Công cụ mã nguồn mở chính thức",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Do đội Tako phát triển — cài đặt một cú nhấp, đã cấu hình sẵn cho gateway này.",
+    "Official tools, built in the open": "Công cụ chính thức, phát triển công khai",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "Trình khởi chạy và ứng dụng desktop của chúng tôi đều mã nguồn mở — hãy star, fork, hoặc cứ cài đặt và bắt đầu lập trình.",
+    "Terminal launcher · npm": "Trình khởi chạy terminal · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "Một lệnh để khởi chạy Claude Code, Codex hoặc Gemini CLI với xác thực gateway được cấu hình sẵn — không cần quản lý biến môi trường.",
+    "Desktop app · Tauri 2 · MIT": "Ứng dụng desktop · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Một ứng dụng desktop để quản lý và khởi chạy Claude Code, Codex, Gemini CLI và hơn thế nữa — tích hợp sẵn Tako provider, dùng ngay.",
+    "Star on GitHub": "Star trên GitHub"
   }
 }

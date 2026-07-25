@@ -5335,6 +5335,22 @@
     "View All": "すべて表示",
     "No logs yet": "ログはまだありません",
     "Reset:": "リセット:",
-    "All users, since midnight (UTC+8)": "全ユーザー、UTC+8 の0時から現在まで"
+    "All users, since midnight (UTC+8)": "全ユーザー、UTC+8 の0時から現在まで",
+    "docs.hero.subtitle": "OpenAI、Claude、Gemini を統合する API ゲートウェイ——クイックスタートから高度な連携まで。",
+    "docs.desc.index": "ドキュメントホーム",
+    "docs.desc.overview": "5 分で最初の API 呼び出し。",
+    "docs.desc.cli": "ワンコマンドで Claude Code / Codex / Gemini CLI を起動。",
+    "docs.desc.api": "OpenAI / Anthropic / Gemini 3 プロトコルのエンドポイントリファレンス。",
+    "docs.desc.integrations": "Claude Code、Codex、Gemini CLI などのクライアント接続ガイド。",
+    "docs.home.popular": "人気のページ",
+    "Official Open-Source Tools": "公式オープンソースツール",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Tako チーム製——ワンクリックでセットアップ、このゲートウェイ用に事前設定済み。",
+    "Official tools, built in the open": "公式ツール、すべてオープンソース",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "ランチャーとデスクトップアプリはオープンソースです——スター、フォーク、あるいはそのままインストールしてコーディングを始めましょう。",
+    "Terminal launcher · npm": "ターミナルランチャー · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "ワンコマンドで Claude Code / Codex / Gemini CLI を起動。ゲートウェイ認証は事前設定済みで、環境変数の管理は不要です。",
+    "Desktop app · Tauri 2 · MIT": "デスクトップアプリ · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Claude Code、Codex、Gemini CLI などを管理・起動するデスクトップアプリ。Tako プロバイダー内蔵で、すぐに使えます。",
+    "Star on GitHub": "GitHub でスター"
   }
 }

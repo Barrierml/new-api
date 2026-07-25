@@ -5335,6 +5335,22 @@
     "View All": "查看全部",
     "No logs yet": "暫無日誌",
     "Reset:": "重置時間:",
-    "All users, since midnight (UTC+8)": "全部用戶,UTC+8 零點至今"
+    "All users, since midnight (UTC+8)": "全部用戶,UTC+8 零點至今",
+    "docs.hero.subtitle": "統一接入 OpenAI、Claude、Gemini 的 API 閘道——從快速開始到深度整合。",
+    "docs.desc.index": "文件首頁",
+    "docs.desc.overview": "5 分鐘跑通第一次呼叫。",
+    "docs.desc.cli": "一條指令啟動 Claude Code / Codex / Gemini CLI。",
+    "docs.desc.api": "OpenAI / Anthropic / Gemini 三協議端點參考。",
+    "docs.desc.integrations": "Claude Code、Codex、Gemini CLI 等用戶端接入指南。",
+    "docs.home.popular": "熱門頁面",
+    "Official Open-Source Tools": "官方開源工具",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Tako 團隊出品——一鍵安裝,已為本閘道預配置。",
+    "Official tools, built in the open": "官方工具,全部開源",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "啟動器和桌面應用全部開源——歡迎 star、fork,或直接安裝開用。",
+    "Terminal launcher · npm": "終端啟動器 · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "一條指令啟動 Claude Code / Codex / Gemini CLI,閘道認證自動接管,無需手動設定環境變數。",
+    "Desktop app · Tauri 2 · MIT": "桌面應用 · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "一個桌面應用管理並啟動 Claude Code、Codex、Gemini CLI 等工具,內建 Tako 供應商,開箱即用。",
+    "Star on GitHub": "在 GitHub 上 Star"
   }
 }

@@ -13,8 +13,6 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
@@ -26,7 +24,9 @@ import {
   type DocEntry,
   type DocGroup,
   GROUP_LABEL_KEY,
+  GROUP_META,
 } from '../lib/docs'
+import { GROUP_ICONS } from './docs-icons'
 
 interface DocsSidebarProps {
   entries: DocEntry[]
@@ -59,10 +59,12 @@ export function DocsSidebar(props: DocsSidebarProps) {
       {SECTION_ORDER.filter((g) => grouped.has(g)).map((g) => {
         const items = grouped.get(g) ?? []
         const isIndex = g === 'index'
+        const Icon = GROUP_ICONS[GROUP_META[g].icon]
         return (
           <section key={g}>
             {!isIndex && (
-              <h2 className='text-muted-foreground mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider'>
+              <h2 className='text-muted-foreground mb-1.5 flex items-center gap-1.5 px-3 text-xs font-semibold'>
+                <Icon className='size-3.5' />
                 {t(GROUP_LABEL_KEY[g])}
               </h2>
             )}
@@ -97,12 +99,16 @@ function NavLink({
     <Link
       to={to}
       className={cn(
-        'block rounded-md px-3 py-1.5 text-[13.5px] transition-colors',
+        'relative block rounded-md py-1.5 pl-4 pr-3 text-[13.5px] transition-colors',
         active
           ? 'bg-primary/10 text-primary font-medium'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
       )}
     >
+      {/* active 左侧指示条 */}
+      {active && (
+        <span className='bg-primary absolute left-1 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full' />
+      )}
       {label ?? doc.title}
     </Link>
   )

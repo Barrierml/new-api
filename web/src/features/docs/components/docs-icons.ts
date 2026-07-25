@@ -16,9 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
-export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { OpenSource } from './sections/open-source'
-export { Stats } from './sections/stats'
+import { Blocks, BookOpen, House, Rocket, Terminal } from 'lucide-react'
+
+import type { GroupMeta } from '../lib/docs'
+
+/** GROUP_META.icon 字符串 → lucide 组件,着陆页卡片和侧边栏共用。 */
+export const GROUP_ICONS: Record<
+  GroupMeta['icon'],
+  typeof Rocket
+> = {
+  rocket: Rocket,
+  terminal: Terminal,
+  'book-open': BookOpen,
+  blocks: Blocks,
+  house: House,
+}

@@ -5335,6 +5335,22 @@
     "View All": "Показать все",
     "No logs yet": "Журналов пока нет",
     "Reset:": "Сброс:",
-    "All users, since midnight (UTC+8)": "Все пользователи, с полуночи (UTC+8)"
+    "All users, since midnight (UTC+8)": "Все пользователи, с полуночи (UTC+8)",
+    "docs.hero.subtitle": "Единый шлюз для OpenAI, Claude и Gemini — от быстрого старта до глубокой интеграции.",
+    "docs.desc.index": "Главная документации",
+    "docs.desc.overview": "Первый вызов API за 5 минут.",
+    "docs.desc.cli": "Запуск Claude Code, Codex или Gemini CLI одной командой.",
+    "docs.desc.api": "Справочник эндпоинтов протоколов OpenAI, Anthropic и Gemini.",
+    "docs.desc.integrations": "Подключение Claude Code, Codex, Gemini CLI и других клиентов.",
+    "docs.home.popular": "Популярные страницы",
+    "Official Open-Source Tools": "Официальные инструменты с открытым кодом",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Разработано командой Tako — установка в один клик, уже настроено для этого шлюза.",
+    "Official tools, built in the open": "Официальные инструменты в открытом коде",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "Наш лаунчер и десктопное приложение — открытый код: ставьте звезду, форкайте или просто устанавливайте и пишите код.",
+    "Terminal launcher · npm": "Терминальный лаунчер · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "Одна команда запускает Claude Code, Codex или Gemini CLI с готовой авторизацией шлюза — без ручной настройки переменных окружения.",
+    "Desktop app · Tauri 2 · MIT": "Десктопное приложение · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "Одно десктопное приложение для управления и запуска Claude Code, Codex, Gemini CLI и других — со встроенным провайдером Tako, работает из коробки.",
+    "Star on GitHub": "Поставить звезду на GitHub"
   }
 }

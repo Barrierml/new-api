@@ -23,12 +23,13 @@ import { useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
 
+import { DocsHome } from './components/docs-home'
 import { DocsMarkdown } from './components/docs-markdown'
 import { DocsSidebar } from './components/docs-sidebar'
 import { DocsToc } from './components/docs-toc'
 import {
   type DocEntry,
-  findDoc,
+  GROUP_LABEL_KEY,
   injectTokens,
   listDocs,
   parseAnchors,
@@ -41,8 +42,8 @@ export function DocsPage() {
   const { status } = useStatus()
 
   const slug = String(params._splat ?? '').replaceAll(/^\/+|\/+$/g, '')
-  const entries = useMemo(() => listDocs(), [])
-  const current = useMemo(() => findDoc(slug) ?? findDoc(''), [slug])
+  const rawEntries = useMemo(() => listDocs(), [])
+  const isHome = slug === ''
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const baseUrl = useMemo(() => {
@@ -67,13 +68,30 @@ export function DocsPage() {
     return 'Tako'
   }, [status])
 
+  // 标题里也可能有 {{BRAND}} / {{BASE_URL}}(如「Claude Code 接入 {{BRAND}}」),
+  // 侧边栏/面包屑/上一页下一页都显示标题,所以在源头统一注入。
+  const entries = useMemo(
+    () =>
+      rawEntries.map((e) => ({
+        ...e,
+        title: injectTokens(e.title, { baseUrl, brand }),
+      })),
+    [rawEntries, baseUrl, brand],
+  )
+  const current = useMemo(
+    () =>
+      entries.find((d) => d.slug === slug) ??
+      entries.find((d) => d.slug === ''),
+    [entries, slug],
+  )
+
   const content = useMemo(
     () => injectTokens(current?.content ?? '', { baseUrl, brand }),
     [current, baseUrl, brand],
   )
   const anchors = useMemo(
-    () => (current ? parseAnchors(content) : []),
-    [current, content],
+    () => (current && !isHome ? parseAnchors(content) : []),
+    [current, content, isHome],
   )
 
   const onNavigate = (href: string) => {
@@ -104,7 +122,12 @@ export function DocsPage() {
 
   return (
     <div className='bg-background flex h-[100dvh] flex-col overflow-hidden'>
-      <DocsTopBar onMobileNavOpen={() => setMobileNavOpen(true)} />
+      <DocsTopBar
+        brand={brand}
+        current={current ?? null}
+        isHome={isHome}
+        onMobileNavOpen={() => setMobileNavOpen(true)}
+      />
 
       <div className='flex flex-1 overflow-hidden'>
         {/* 左侧目录 — 桌面 */}
@@ -139,37 +162,41 @@ export function DocsPage() {
 
         {/* 中间正文 */}
         <main ref={scrollRef} className='flex-1 overflow-y-auto'>
-          <article
-            key={current?.slug ?? 'missing'}
-            className='bg-card mx-auto mb-12 max-w-3xl rounded-xl border px-4 py-8 shadow-sm sm:px-6 sm:py-10 md:px-10 md:py-14'
-          >
-            {current ? (
-              <DocsMarkdown
-                content={content}
-                currentSlug={current.slug}
-                onNavigate={onNavigate}
-              />
-            ) : (
-              <p className='text-muted-foreground'>
-                {t('Documentation not found.')}{' '}
-                <Link to='/docs' className='text-primary underline'>
-                  {t('Back to documentation home')}
-                </Link>
-              </p>
-            )}
+          {isHome ? (
+            <DocsHome brand={brand} onNavigate={onNavigate} />
+          ) : (
+            <article
+              key={current?.slug ?? 'missing'}
+              className='mx-auto mb-16 max-w-[44rem] px-6 py-10 md:py-14'
+            >
+              {current ? (
+                <DocsMarkdown
+                  content={content}
+                  currentSlug={current.slug}
+                  onNavigate={onNavigate}
+                />
+              ) : (
+                <p className='text-muted-foreground'>
+                  {t('Documentation not found.')}{' '}
+                  <Link to='/docs' className='text-primary underline'>
+                    {t('Back to documentation home')}
+                  </Link>
+                </p>
+              )}
 
-            {current && current.slug && (prev || next) && (
-              <DocFooterNav
-                prev={prev}
-                next={next}
-                onNavigate={onNavigate}
-              />
-            )}
-          </article>
+              {current && current.slug && (prev || next) && (
+                <DocFooterNav
+                  prev={prev}
+                  next={next}
+                  onNavigate={onNavigate}
+                />
+              )}
+            </article>
+          )}
         </main>
 
         {/* 右侧 TOC */}
-        {anchors.length > 1 && (
+        {!isHome && anchors.length > 1 && (
           <aside className='bg-background/30 hidden w-56 shrink-0 border-l xl:block'>
             <DocsToc anchors={anchors} container={scrollRef} />
           </aside>
@@ -179,10 +206,20 @@ export function DocsPage() {
   )
 }
 
-function DocsTopBar({ onMobileNavOpen }: { onMobileNavOpen: () => void }) {
+function DocsTopBar({
+  brand,
+  current,
+  isHome,
+  onMobileNavOpen,
+}: {
+  brand: string
+  current: DocEntry | null
+  isHome: boolean
+  onMobileNavOpen: () => void
+}) {
   const { t } = useTranslation()
   return (
-    <header className='sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md md:px-6'>
+    <header className='bg-background/80 sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 backdrop-blur-md md:px-6'>
       <button
         type='button'
         onClick={onMobileNavOpen}
@@ -195,8 +232,17 @@ function DocsTopBar({ onMobileNavOpen }: { onMobileNavOpen: () => void }) {
         to='/docs'
         className='flex items-center gap-2 text-sm font-semibold'
       >
-        {t('Documentation')}
+        {brand} · {t('Documentation')}
       </Link>
+      {/* 面包屑:当前组 / 当前页 */}
+      {!isHome && current && (
+        <nav className='text-muted-foreground hidden items-center gap-1.5 text-xs md:flex'>
+          <span>/</span>
+          <span>{t(GROUP_LABEL_KEY[current.group])}</span>
+          <span>/</span>
+          <span className='text-foreground font-medium'>{current.title}</span>
+        </nav>
+      )}
       <Link
         to='/'
         className='text-muted-foreground hover:text-foreground ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs'
@@ -227,10 +273,10 @@ function DocFooterNav({
             e.preventDefault()
             onNavigate(prev.slug ? `/docs/${prev.slug}` : '/docs')
           }}
-          className='hover:bg-muted/40 group flex flex-col rounded-lg border p-4 text-sm transition-colors'
+          className='hover:border-primary/40 hover:bg-muted/40 group flex flex-col rounded-lg border p-4 text-sm transition-colors'
         >
           <span className='text-muted-foreground flex items-center gap-1 text-[11px] uppercase tracking-wider'>
-            <ChevronLeft className='size-3' />
+            <ChevronLeft className='size-3 transition-transform group-hover:-translate-x-0.5' />
             {t('Previous')}
           </span>
           <span className='group-hover:text-primary mt-1 font-medium transition-colors'>
@@ -247,11 +293,11 @@ function DocFooterNav({
             e.preventDefault()
             onNavigate(next.slug ? `/docs/${next.slug}` : '/docs')
           }}
-          className='group flex flex-col items-end rounded-lg border p-4 text-right text-sm transition-colors hover:bg-muted/40'
+          className='hover:border-primary/40 hover:bg-muted/40 group flex flex-col items-end rounded-lg border p-4 text-right text-sm transition-colors'
         >
           <span className='text-muted-foreground flex items-center gap-1 text-[11px] uppercase tracking-wider'>
             {t('Next')}
-            <ChevronRight className='size-3' />
+            <ChevronRight className='size-3 transition-transform group-hover:translate-x-0.5' />
           </span>
           <span className='group-hover:text-primary mt-1 font-medium transition-colors'>
             {next.title}

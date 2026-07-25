@@ -63,10 +63,10 @@ export function DocsToc(props: DocsTocProps) {
 
   return (
     <div className='sticky top-14 max-h-[calc(100vh-4rem)] overflow-y-auto py-8 pl-6 pr-4'>
-      <div className='text-muted-foreground mb-3 text-[11px] font-semibold uppercase tracking-wider'>
+      <div className='text-muted-foreground mb-3 text-xs font-semibold'>
         {t('On this page')}
       </div>
-      <ul className='space-y-1'>
+      <ul className='space-y-0.5 border-l'>
         {props.anchors.map((a) => (
           <li
             key={a.id}
@@ -75,8 +75,10 @@ export function DocsToc(props: DocsTocProps) {
             <a
               href={`#${a.id}`}
               className={cn(
-                'text-muted-foreground/80 block py-1 pl-3 text-[12.5px] leading-snug',
-                activeId === a.id && 'text-foreground font-medium',
+                '-ml-px block border-l-2 py-1 pl-3 text-[12.5px] leading-snug transition-colors',
+                activeId === a.id
+                  ? 'border-primary text-primary font-medium'
+                  : 'text-muted-foreground/80 hover:text-foreground border-transparent',
               )}
             >
               {a.text}

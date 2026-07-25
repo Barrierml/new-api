@@ -5335,6 +5335,22 @@
     "View All": "View All",
     "No logs yet": "No logs yet",
     "Reset:": "Reset:",
-    "All users, since midnight (UTC+8)": "All users, since midnight (UTC+8)"
+    "All users, since midnight (UTC+8)": "All users, since midnight (UTC+8)",
+    "docs.hero.subtitle": "One gateway for OpenAI, Claude and Gemini — from quickstart to deep integration.",
+    "docs.desc.index": "Documentation home",
+    "docs.desc.overview": "Make your first API call in 5 minutes.",
+    "docs.desc.cli": "Launch Claude Code, Codex or Gemini CLI with one command.",
+    "docs.desc.api": "Endpoint reference for the OpenAI, Anthropic and Gemini protocols.",
+    "docs.desc.integrations": "Connect Claude Code, Codex, Gemini CLI and other clients.",
+    "docs.home.popular": "Popular pages",
+    "Official Open-Source Tools": "Official Open-Source Tools",
+    "Built by the Tako team — one-click setup, pre-configured for this gateway.": "Built by the Tako team — one-click setup, pre-configured for this gateway.",
+    "Official tools, built in the open": "Official tools, built in the open",
+    "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.": "Our launcher and desktop app are open source — star them, fork them, or just install and start coding.",
+    "Terminal launcher · npm": "Terminal launcher · npm",
+    "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.": "One command to launch Claude Code, Codex or Gemini CLI with gateway auth pre-configured — no env vars to manage.",
+    "Desktop app · Tauri 2 · MIT": "Desktop app · Tauri 2 · MIT",
+    "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.": "One desktop app to manage and launch Claude Code, Codex, Gemini CLI and more — with the Tako provider built in, ready out of the box.",
+    "Star on GitHub": "Star on GitHub"
   }
 }
