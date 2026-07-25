@@ -36,6 +36,11 @@ import { useAuthRedirect } from './use-auth-redirect'
 /**
  * Hook for managing OAuth login
  */
+// Custom OAuth providers migrated from PAR whose OAuth app redirect URI is
+// still the PAR-era callback path. Remove once the console registration is
+// updated to /oauth/{slug}.
+const LEGACY_PAR_OAUTH_SLUGS = new Set(['google'])
+
 export function useOAuthLogin(
   status: SystemStatus | null,
   redirectTo?: string
@@ -211,7 +216,13 @@ export function useOAuthLogin(
       await resetSession()
       const state = await createOAuthFlow(provider.slug, 'login')
 
-      const redirectUri = `${window.location.origin}/oauth/${provider.slug}`
+      // Legacy PAR callback compatibility: the provider's OAuth app (e.g.
+      // Google Cloud Console) still has the PAR-era redirect URI registered
+      // (/par/user/auth/oauth/{slug}/callback). The backend 302s that path
+      // back to the SPA callback route, so it is safe to keep sending it.
+      const redirectUri = LEGACY_PAR_OAUTH_SLUGS.has(provider.slug)
+        ? `${window.location.origin}/par/user/auth/oauth/${provider.slug}/callback`
+        : `${window.location.origin}/oauth/${provider.slug}`
       const url = new URL(provider.authorization_endpoint)
       url.searchParams.set('client_id', provider.client_id)
       url.searchParams.set('redirect_uri', redirectUri)
