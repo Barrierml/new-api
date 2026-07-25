@@ -121,6 +121,9 @@ func main() {
 
 	// Subscription quota reset task (daily/weekly/monthly/custom)
 	service.StartSubscriptionQuotaResetTask()
+
+	// Subscription expiry reminder email (5 days ahead, once per subscription)
+	service.StartSubscriptionExpiryRemindTask()
 	catfk.StartSweeper()
 
 	// Report this process as a system instance so the System Info page can show

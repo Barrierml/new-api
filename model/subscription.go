@@ -288,6 +288,9 @@ type UserSubscription struct {
 	// deleting any logs.
 	SubQuotaResetAt int64 `json:"sub_quota_reset_at" gorm:"type:bigint;default:0"`
 
+	// Unix timestamp of when the expiry reminder email was sent; 0 = not sent yet.
+	ExpiryRemindedAt int64 `json:"expiry_reminded_at" gorm:"type:bigint;default:0;index"`
+
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
 }
@@ -1408,6 +1411,31 @@ type SubscriptionPreConsumeResult struct {
 	AmountTotal        int64
 	AmountUsedBefore   int64
 	AmountUsedAfter    int64
+}
+
+// ListExpiryReminderDueSubscriptions returns active subscriptions whose end_time
+// falls in (now, now+aheadSeconds] and whose expiry reminder has not been sent.
+func ListExpiryReminderDueSubscriptions(now, aheadSeconds int64, limit int) ([]*UserSubscription, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	var subs []*UserSubscription
+	if err := DB.Where("status = ? AND end_time > ? AND end_time <= ? AND expiry_reminded_at = 0",
+		"active", now, now+aheadSeconds).
+		Order("end_time asc, id asc").
+		Limit(limit).
+		Find(&subs).Error; err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// MarkExpiryReminderSent sets expiry_reminded_at if it is still zero, so the
+// reminder for a given subscription instance is sent at most once.
+func MarkExpiryReminderSent(id int, now int64) error {
+	return DB.Model(&UserSubscription{}).
+		Where("id = ? AND expiry_reminded_at = 0", id).
+		Update("expiry_reminded_at", now).Error
 }
 
 // ExpireDueSubscriptions marks expired subscriptions and handles group downgrade.
