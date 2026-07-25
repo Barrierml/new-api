@@ -24,7 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatCurrencyUSD, formatTimestamp } from '@/lib/format'
+import { formatCurrencyUSD, formatTimeStr, formatTimestamp } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import type { OperationsWindow } from '../types'
@@ -63,6 +63,11 @@ export function UsageProgress(props: { window: OperationsWindow | null }) {
           value={usedPercent}
           className={cn('h-1.5', getQuotaProgressColor(remainingPercent))}
         />
+        {w.window_end > 0 && (
+          <div className='text-muted-foreground text-[10px] tabular-nums'>
+            {formatTimeStr(new Date(w.window_end * 1000))} {t('Reset')}
+          </div>
+        )}
       </TooltipTrigger>
       <TooltipContent side='top'>
         <div className='space-y-0.5 text-xs'>

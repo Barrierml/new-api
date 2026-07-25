@@ -1,6 +1,8 @@
 package router
 
 import (
+	"strings"
+
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/middleware"
@@ -172,12 +174,79 @@ func SetRelayRouter(router *gin.Engine) {
 	relayMjRouter.Use(middleware.RouteTag("relay"))
 	relayMjRouter.Use(middleware.SystemPerformanceCheck())
 	registerMjRouterGroup(relayMjRouter)
-
 	relayMjModeRouter := router.Group("/:mode/mj")
 	relayMjModeRouter.Use(middleware.RouteTag("relay"))
 	relayMjModeRouter.Use(middleware.SystemPerformanceCheck())
 	registerMjRouterGroup(relayMjModeRouter)
 	//relayMjRouter.Use()
+
+	// PAR 兼容:老客户端 base_url 带 /api 前缀(https://tako.shiroha.tech/api/v1)。
+	// 进入 group 后剥掉 /api 前缀,下游所有 path 判断(Path2RelayMode / distributor)与 /v1 完全一致。
+	apiV1ModelsRouter := router.Group("/api/v1/models")
+	apiV1ModelsRouter.Use(middleware.RouteTag("relay"))
+	apiV1ModelsRouter.Use(middleware.TokenAuth())
+	{
+		apiV1ModelsRouter.GET("", func(c *gin.Context) {
+			switch {
+			case c.GetHeader("x-api-key") != "" && c.GetHeader("anthropic-version") != "":
+				controller.ListModels(c, constant.ChannelTypeAnthropic)
+			default:
+				controller.ListModels(c, constant.ChannelTypeOpenAI)
+			}
+		})
+	}
+	apiV1Router := router.Group("/api/v1")
+	apiV1Router.Use(middleware.RouteTag("relay"))
+	apiV1Router.Use(func(c *gin.Context) {
+		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/api")
+		c.Next()
+	})
+	apiV1Router.Use(middleware.SystemPerformanceCheck())
+	apiV1Router.Use(middleware.TokenAuth())
+	apiV1Router.Use(middleware.ModelRequestRateLimit())
+	apiV1Router.Use(middleware.Distribute())
+	{
+		apiV1Router.POST("/messages", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatClaude)
+		})
+		apiV1Router.POST("/messages/count_tokens", controller.CountTokensClaude)
+		apiV1Router.POST("/completions", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAI)
+		})
+		apiV1Router.POST("/chat/completions", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAI)
+		})
+		apiV1Router.POST("/responses", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIResponses)
+		})
+		apiV1Router.POST("/responses/compact", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIResponsesCompaction)
+		})
+		apiV1Router.POST("/images/generations", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIImage)
+		})
+		apiV1Router.POST("/images/edits", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIImage)
+		})
+		apiV1Router.POST("/embeddings", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatEmbedding)
+		})
+		apiV1Router.POST("/audio/transcriptions", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIAudio)
+		})
+		apiV1Router.POST("/audio/translations", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIAudio)
+		})
+		apiV1Router.POST("/audio/speech", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIAudio)
+		})
+		apiV1Router.POST("/rerank", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatRerank)
+		})
+		apiV1Router.POST("/moderations", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAI)
+		})
+	}
 
 	relaySunoRouter := router.Group("/suno")
 	relaySunoRouter.Use(middleware.RouteTag("relay"))

@@ -110,11 +110,22 @@ export function ActiveUsersTable(props: ActiveUsersTableProps) {
     {
       id: 'last_used',
       header: t('Last Used'),
-      cell: (row) => (
-        <span className='text-muted-foreground text-xs'>
-          {formatTimestampRelative(row.last_used_at)}
-        </span>
-      ),
+      cell: (row) => {
+        // 10 分钟内活跃的用户时间标绿,30s 轮询自动消退
+        const recentlyActive =
+          row.last_used_at > 0 && Date.now() / 1000 - row.last_used_at < 600
+        return (
+          <span
+            className={
+              recentlyActive
+                ? 'text-xs font-medium text-emerald-600 dark:text-emerald-400'
+                : 'text-muted-foreground text-xs'
+            }
+          >
+            {formatTimestampRelative(row.last_used_at)}
+          </span>
+        )
+      },
     },
   ]
 
