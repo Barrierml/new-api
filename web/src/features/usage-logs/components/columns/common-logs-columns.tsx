@@ -496,6 +496,15 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
 
           if (!log.username) return null
 
+          const primary =
+            log.user_display_name || log.user_email || log.username
+          const secondary =
+            log.user_email && log.user_email !== primary
+              ? log.user_email
+              : log.username !== primary
+                ? log.username
+                : ''
+
           return (
             <button
               type='button'
@@ -513,12 +522,10 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     !sensitiveVisible && 'bg-muted text-muted-foreground'
                   )}
                   style={
-                    sensitiveVisible
-                      ? getUserAvatarStyle(log.username)
-                      : undefined
+                    sensitiveVisible ? getUserAvatarStyle(primary) : undefined
                   }
                 >
-                  {sensitiveVisible ? getUserAvatarFallback(log.username) : '•'}
+                  {sensitiveVisible ? getUserAvatarFallback(primary) : '•'}
                 </AvatarFallback>
               </Avatar>
               <TooltipProvider delay={300}>
@@ -531,11 +538,11 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     {sensitiveVisible ? (
                       <>
                         <span className='truncate text-sm hover:underline'>
-                          {log.user_email || log.username}
+                          {primary}
                         </span>
-                        {log.user_email && log.user_email !== log.username && (
+                        {secondary && (
                           <span className='text-muted-foreground truncate text-xs'>
-                            {log.username}
+                            {secondary}
                           </span>
                         )}
                       </>
@@ -545,9 +552,13 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   </TooltipTrigger>
                   {sensitiveVisible && (
                     <TooltipContent side='top'>
-                      {log.user_email
-                        ? `${log.user_email} (${log.username})`
-                        : log.username}
+                      {[
+                        log.user_display_name,
+                        log.user_email,
+                        log.username,
+                      ]
+                        .filter((v, i, arr) => v && arr.indexOf(v) === i)
+                        .join(' · ')}
                     </TooltipContent>
                   )}
                 </Tooltip>

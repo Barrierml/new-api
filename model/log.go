@@ -73,6 +73,7 @@ type Log struct {
 	ChannelId         int    `json:"channel" gorm:"index"`
 	ChannelName       string `json:"channel_name" gorm:"->"`
 	UserEmail         string `json:"user_email,omitempty" gorm:"->"`
+	UserDisplayName   string `json:"user_display_name,omitempty" gorm:"->"`
 	TokenId           int    `json:"token_id" gorm:"default:0;index"`
 	Group             string `json:"group" gorm:"index"`
 	Ip                string `json:"ip" gorm:"index;default:''"`
@@ -565,18 +566,22 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 	if userIds.Len() > 0 {
 		var users []struct {
-			Id    int    `gorm:"column:id"`
-			Email string `gorm:"column:email"`
+			Id          int    `gorm:"column:id"`
+			Email       string `gorm:"column:email"`
+			DisplayName string `gorm:"column:display_name"`
 		}
-		if err = DB.Table("users").Select("id, email").Where("id IN ?", userIds.Items()).Find(&users).Error; err != nil {
+		if err = DB.Table("users").Select("id, email, display_name").Where("id IN ?", userIds.Items()).Find(&users).Error; err != nil {
 			return logs, total, err
 		}
 		emailMap := make(map[int]string, len(users))
+		displayNameMap := make(map[int]string, len(users))
 		for _, user := range users {
 			emailMap[user.Id] = user.Email
+			displayNameMap[user.Id] = user.DisplayName
 		}
 		for i := range logs {
 			logs[i].UserEmail = emailMap[logs[i].UserId]
+			logs[i].UserDisplayName = displayNameMap[logs[i].UserId]
 		}
 	}
 
