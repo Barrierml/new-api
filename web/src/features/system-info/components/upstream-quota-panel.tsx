@@ -67,6 +67,36 @@ function formatTime(value: string | number | undefined) {
   return date.toLocaleString()
 }
 
+function getProviderLabel(
+  provider: string,
+  t: ReturnType<typeof useTranslation>['t']
+) {
+  if (!provider) return t('Unknown provider')
+  return t(`upstreamQuota.provider.${provider}`, { defaultValue: provider })
+}
+
+function getDisplayName(
+  entity: UpstreamQuotaEntity,
+  t: ReturnType<typeof useTranslation>['t']
+) {
+  const displayName = entity.display_name || entity.entity_id
+  return t(`upstreamQuota.entity.${entity.entity_id}`, {
+    defaultValue: displayName,
+  })
+}
+
+function groupEntitiesByProvider(entities: UpstreamQuotaEntity[]) {
+  const groups = new Map<string, UpstreamQuotaEntity[]>()
+  for (const entity of entities) {
+    const provider = entity.provider || ''
+    groups.set(provider, [...(groups.get(provider) ?? []), entity])
+  }
+  return Array.from(groups, ([provider, groupedEntities]) => ({
+    provider,
+    entities: groupedEntities,
+  }))
+}
+
 function IdList(props: { label: string; values?: number[] }) {
   const { t } = useTranslation()
   return (
@@ -84,6 +114,11 @@ function QuotaWindowRow(props: { window: UpstreamQuotaWindow }) {
   const remaining = formatNumber(props.window.remaining)
   const percentage = formatNumber(props.window.remaining_pct)
   const resetAt = formatTime(props.window.reset_at)
+  const unit = props.window.unit
+    ? t(`upstreamQuota.unit.${props.window.unit}`, {
+        defaultValue: props.window.unit,
+      })
+    : ''
   const hasPercentage = props.window.remaining_pct !== undefined
   const progress = hasPercentage
     ? Math.min(100, Math.max(0, props.window.remaining_pct ?? 0))
@@ -112,7 +147,7 @@ function QuotaWindowRow(props: { window: UpstreamQuotaWindow }) {
               {remaining !== null && (
                 <span>
                   {remaining}
-                  {props.window.unit ? ` ${props.window.unit}` : ''}
+                  {unit ? ` ${unit}` : ''}
                 </span>
               )}
               {remaining !== null && percentage !== null && ' · '}
@@ -142,10 +177,9 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div className='min-w-0'>
             <h4 className='truncate font-semibold'>
-              {props.entity.display_name || props.entity.entity_id}
+              {getDisplayName(props.entity, t)}
             </h4>
             <div className='text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 text-xs'>
-              <span>{props.entity.provider || t('Unknown provider')}</span>
               <span className='font-mono'>{props.entity.entity_id}</span>
             </div>
           </div>
@@ -153,7 +187,9 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
             variant='secondary'
             className={STATUS_CLASS_NAME[effectiveStatus]}
           >
-            {t(effectiveStatus)}
+            {t(`upstreamQuota.status.${effectiveStatus}`, {
+              defaultValue: effectiveStatus,
+            })}
           </Badge>
         </div>
         <p className='text-muted-foreground text-xs'>
@@ -248,9 +284,26 @@ export function UpstreamQuotaPanel() {
     )
   } else {
     dashboardContent = (
-      <div className='grid gap-4 lg:grid-cols-2'>
-        {dashboard.entities.map((entity) => (
-          <QuotaEntityCard key={entity.entity_id} entity={entity} />
+      <div className='space-y-4'>
+        {groupEntitiesByProvider(dashboard.entities).map((group) => (
+          <section
+            key={group.provider || 'unknown'}
+            className='bg-muted/20 space-y-3 rounded-lg border p-3 sm:p-4'
+          >
+            <div className='flex flex-wrap items-center justify-between gap-2 px-1'>
+              <h4 className='font-semibold'>
+                {getProviderLabel(group.provider, t)}
+              </h4>
+              <span className='text-muted-foreground text-xs'>
+                {t('{{count}} accounts', { count: group.entities.length })}
+              </span>
+            </div>
+            <div className='grid gap-4 lg:grid-cols-2'>
+              {group.entities.map((entity) => (
+                <QuotaEntityCard key={entity.entity_id} entity={entity} />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     )
@@ -296,7 +349,10 @@ export function UpstreamQuotaPanel() {
                 variant='secondary'
                 className={STATUS_CLASS_NAME[status]}
               >
-                {t(status)}: {dashboard.counts[status] ?? 0}
+                {t(`upstreamQuota.status.${status}`, {
+                  defaultValue: status,
+                })}
+                : {dashboard.counts[status] ?? 0}
               </Badge>
             ))}
           </div>
