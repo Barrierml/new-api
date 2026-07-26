@@ -1056,6 +1056,25 @@ func (channel *Channel) GetHeaderOverride() map[string]interface{} {
 	return headerOverride
 }
 
+type ChannelPublicSummary struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Priority int64  `json:"priority"`
+	Status   int    `json:"status"`
+}
+
+func GetChannelPublicSummariesByIDs(ids []int64) ([]ChannelPublicSummary, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var channels []ChannelPublicSummary
+	err := DB.Model(&Channel{}).
+		Select("id, name, COALESCE(priority, 0) AS priority, status").
+		Where("id IN ?", ids).
+		Find(&channels).Error
+	return channels, err
+}
+
 func GetChannelsByIds(ids []int) ([]*Channel, error) {
 	var channels []*Channel
 	err := DB.Where("id in (?)", ids).Find(&channels).Error

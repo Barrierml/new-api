@@ -5362,6 +5362,8 @@
     "Account IDs": "账号 ID",
     "Group IDs": "分组 ID",
     "Channel IDs": "渠道 ID",
+    "Priority {{priority}}": "优先级 {{priority}}",
+    "Higher priority routes first": "数值越大越优先",
     "Collected at {{time}}": "采集于 {{time}}",
     "Collection time unavailable": "暂无采集时间",
     "No quota windows reported.": "未上报额度窗口。",

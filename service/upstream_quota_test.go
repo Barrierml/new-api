@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestLoadUpstreamQuotaDashboardProjectsSanitizedReport(t *testing.T) {
@@ -64,6 +67,63 @@ func TestLoadUpstreamQuotaDashboardProjectsSanitizedReport(t *testing.T) {
 	assert.NotContains(t, body, "private upstream error")
 	assert.NotContains(t, body, "private.example")
 	assert.NotContains(t, body, "utilization_pct")
+}
+
+func TestLoadUpstreamQuotaDashboardProjectsReviewedChannelPriorities(t *testing.T) {
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	reportPath := writeUpstreamQuotaFixture(t, "report.json", `{
+		"generated_at":"2026-07-26T11:59:30Z",
+		"entities":[{
+			"entity_id":"opencode-main",
+			"display_name":"OpenCode Main",
+			"channel":"opencode",
+			"status":"available",
+			"route_ids":[999],
+			"fetched_at":"2026-07-26T11:59:20Z"
+		}]
+	}`)
+	ownershipPath := writeUpstreamQuotaFixture(t, "ownership.json", `{
+		"entities":{"opencode-main":{"channel_ids":[25,12,99,404]}}
+	}`)
+
+	originalDB := model.DB
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "quota.db")), &gorm.Config{})
+	require.NoError(t, err)
+	model.DB = db
+	t.Cleanup(func() { model.DB = originalDB })
+	require.NoError(t, db.AutoMigrate(&model.Channel{}))
+
+	baseURL := "https://private.example"
+	setting := `{"secret":"setting"}`
+	headerOverride := `{"Authorization":"Bearer private-header"}`
+	paramOverride := `{"private":"parameter"}`
+	priorityHigh := int64(30)
+	priorityLow := int64(10)
+	require.NoError(t, db.Create([]model.Channel{
+		{Id: 25, Name: "Secondary", Status: 1, Priority: &priorityLow, Key: "private-key-low", BaseURL: &baseURL, Setting: &setting},
+		{Id: 12, Name: "Primary B", Status: 1, Priority: &priorityHigh, Key: "private-key-b", HeaderOverride: &headerOverride},
+		{Id: 99, Name: "Primary A", Status: 2, Priority: &priorityHigh, Key: "private-key-a", ParamOverride: &paramOverride},
+		{Id: 999, Name: "Unreviewed", Status: 1, Priority: &priorityHigh, Key: "private-key-unreviewed"},
+	}).Error)
+
+	dashboard, err := LoadUpstreamQuotaDashboard(reportPath, ownershipPath, now, 4*time.Minute)
+	require.NoError(t, err)
+	require.Len(t, dashboard.Entities, 1)
+	assert.Equal(t, []UpstreamQuotaChannel{
+		{ID: 12, Name: "Primary B", Priority: 30, Status: 1},
+		{ID: 99, Name: "Primary A", Priority: 30, Status: 2},
+		{ID: 25, Name: "Secondary", Priority: 10, Status: 1},
+	}, dashboard.Entities[0].Channels)
+
+	encoded, err := common.Marshal(dashboard)
+	require.NoError(t, err)
+	body := string(encoded)
+	assert.NotContains(t, body, "Unreviewed")
+	assert.NotContains(t, body, "private-key")
+	assert.NotContains(t, body, "private.example")
+	assert.NotContains(t, body, "private-header")
+	assert.NotContains(t, body, "parameter")
+	assert.NotContains(t, body, "setting")
 }
 
 func TestLoadUpstreamQuotaDashboardIgnoresUnreviewedRouteIDs(t *testing.T) {

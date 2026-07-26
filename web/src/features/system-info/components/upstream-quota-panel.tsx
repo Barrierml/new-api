@@ -27,6 +27,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUpstreamQuotaDashboard } from '@/features/system-info/api'
 import type {
+  UpstreamQuotaChannel,
   UpstreamQuotaEntity,
   UpstreamQuotaStatus,
   UpstreamQuotaWindow,
@@ -34,12 +35,7 @@ import type {
 import { cn } from '@/lib/utils'
 
 const POLL_INTERVAL_MS = 30_000
-const SKELETON_KEYS = [
-  'quota-skeleton-1',
-  'quota-skeleton-2',
-  'quota-skeleton-3',
-  'quota-skeleton-4',
-]
+const SKELETON_KEYS = ['quota-skeleton-1', 'quota-skeleton-2']
 
 const STATUS_CLASS_NAME: Record<UpstreamQuotaStatus | 'stale', string> = {
   available:
@@ -100,12 +96,29 @@ function groupEntitiesByProvider(entities: UpstreamQuotaEntity[]) {
 function IdList(props: { label: string; values?: number[] }) {
   const { t } = useTranslation()
   return (
-    <div className='flex min-w-0 items-center gap-1.5 text-xs'>
+    <span className='inline-flex min-w-0 items-center gap-1 text-[11px]'>
       <span className='text-muted-foreground shrink-0'>{props.label}</span>
       <span className='truncate font-mono'>
         {props.values?.length ? props.values.join(', ') : t('Not mapped')}
       </span>
-    </div>
+    </span>
+  )
+}
+
+function ChannelPriority(props: { channel: UpstreamQuotaChannel }) {
+  const { t } = useTranslation()
+  return (
+    <span className='bg-muted/60 inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]'>
+      <span className='min-w-0 truncate'>
+        {props.channel.name || `#${props.channel.id}`}
+      </span>
+      <span className='text-muted-foreground shrink-0 font-mono'>
+        #{props.channel.id}
+      </span>
+      <span className='shrink-0 font-medium tabular-nums'>
+        {t('Priority {{priority}}', { priority: props.channel.priority })}
+      </span>
+    </span>
   )
 }
 
@@ -119,48 +132,38 @@ function QuotaWindowRow(props: { window: UpstreamQuotaWindow }) {
         defaultValue: props.window.unit,
       })
     : ''
-  const hasPercentage = props.window.remaining_pct !== undefined
-  const progress = hasPercentage
-    ? Math.min(100, Math.max(0, props.window.remaining_pct ?? 0))
-    : null
+  const progress =
+    props.window.remaining_pct === undefined
+      ? null
+      : Math.min(100, Math.max(0, props.window.remaining_pct))
 
   return (
-    <div className='space-y-2 rounded-md border p-3'>
-      <div className='flex flex-wrap items-start justify-between gap-2'>
-        <div className='min-w-0'>
-          <div className='font-medium'>
-            {props.window.label ||
-              props.window.key ||
-              t('Unnamed quota window')}
-          </div>
-          {props.window.key && (
-            <div className='text-muted-foreground font-mono text-[11px]'>
-              {props.window.key}
-            </div>
-          )}
-        </div>
-        <div className='text-right text-sm tabular-nums'>
+    <div className='space-y-1 rounded border px-2.5 py-2'>
+      <div className='flex min-w-0 items-center justify-between gap-2 text-xs'>
+        <span className='truncate font-medium'>
+          {props.window.label || props.window.key || t('Unnamed quota window')}
+        </span>
+        <span className='shrink-0 tabular-nums'>
           {remaining === null && percentage === null ? (
             <span className='text-muted-foreground'>{t('Unavailable')}</span>
           ) : (
             <>
-              {remaining !== null && (
-                <span>
-                  {remaining}
-                  {unit ? ` ${unit}` : ''}
-                </span>
-              )}
+              {remaining !== null && `${remaining}${unit ? ` ${unit}` : ''}`}
               {remaining !== null && percentage !== null && ' · '}
-              {percentage !== null && <span>{percentage}%</span>}
+              {percentage !== null && `${percentage}%`}
             </>
           )}
-        </div>
+        </span>
       </div>
-      {progress !== null && <Progress value={progress} className='h-1.5' />}
-      <div className='text-muted-foreground text-xs'>
-        {resetAt
-          ? t('Resets at {{time}}', { time: resetAt })
-          : t('Reset time unavailable')}
+      <div className='flex items-center gap-2'>
+        {progress !== null && (
+          <Progress value={progress} className='h-1 min-w-16 flex-1' />
+        )}
+        <span className='text-muted-foreground shrink-0 text-[11px]'>
+          {resetAt
+            ? t('Resets at {{time}}', { time: resetAt })
+            : t('Reset time unavailable')}
+        </span>
       </div>
     </div>
   )
@@ -172,43 +175,55 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
   const fetchedAt = formatTime(props.entity.fetched_at)
 
   return (
-    <article className='bg-card overflow-hidden rounded-lg border shadow-xs'>
-      <div className='space-y-3 border-b p-4'>
-        <div className='flex flex-wrap items-start justify-between gap-3'>
-          <div className='min-w-0'>
-            <h4 className='truncate font-semibold'>
+    <article className='bg-card rounded-md border p-2.5 shadow-xs'>
+      <div className='flex min-w-0 items-start justify-between gap-2'>
+        <div className='min-w-0'>
+          <div className='flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5'>
+            <h4 className='truncate text-sm font-semibold'>
               {getDisplayName(props.entity, t)}
             </h4>
-            <div className='text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 text-xs'>
-              <span className='font-mono'>{props.entity.entity_id}</span>
-            </div>
+            <span className='text-muted-foreground font-mono text-[11px]'>
+              {props.entity.entity_id}
+            </span>
           </div>
-          <Badge
-            variant='secondary'
-            className={STATUS_CLASS_NAME[effectiveStatus]}
-          >
-            {t(`upstreamQuota.status.${effectiveStatus}`, {
-              defaultValue: effectiveStatus,
-            })}
-          </Badge>
+          <p className='text-muted-foreground mt-0.5 text-[11px] leading-4'>
+            {props.entity.stale
+              ? t('Quota snapshot is stale')
+              : t(props.entity.status_message)}
+            {' · '}
+            {fetchedAt
+              ? t('Collected at {{time}}', { time: fetchedAt })
+              : t('Collection time unavailable')}
+          </p>
         </div>
-        <p className='text-muted-foreground text-xs'>
-          {props.entity.stale
-            ? t('Quota snapshot is stale')
-            : t(props.entity.status_message)}
-        </p>
-        <div className='grid gap-1.5 sm:grid-cols-3'>
-          <IdList label={t('Account IDs')} values={props.entity.account_ids} />
-          <IdList label={t('Group IDs')} values={props.entity.group_ids} />
-          <IdList label={t('Channel IDs')} values={props.entity.channel_ids} />
-        </div>
-        <div className='text-muted-foreground text-xs'>
-          {fetchedAt
-            ? t('Collected at {{time}}', { time: fetchedAt })
-            : t('Collection time unavailable')}
-        </div>
+        <Badge
+          variant='secondary'
+          className={cn(
+            'h-5 shrink-0 px-1.5 text-[11px]',
+            STATUS_CLASS_NAME[effectiveStatus]
+          )}
+        >
+          {t(`upstreamQuota.status.${effectiveStatus}`, {
+            defaultValue: effectiveStatus,
+          })}
+        </Badge>
       </div>
-      <div className='space-y-2 p-4'>
+
+      <div className='mt-1.5 flex flex-wrap gap-x-3 gap-y-1'>
+        <IdList label={t('Account IDs')} values={props.entity.account_ids} />
+        <IdList label={t('Group IDs')} values={props.entity.group_ids} />
+        <IdList label={t('Channel IDs')} values={props.entity.channel_ids} />
+      </div>
+
+      {!!props.entity.channels?.length && (
+        <div className='mt-1.5 flex flex-wrap gap-1'>
+          {props.entity.channels.map((channel) => (
+            <ChannelPriority key={channel.id} channel={channel} />
+          ))}
+        </div>
+      )}
+
+      <div className='mt-2 grid gap-1.5 sm:grid-cols-2'>
         {props.entity.windows?.length ? (
           props.entity.windows.map((window) => (
             <QuotaWindowRow
@@ -217,7 +232,7 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
             />
           ))
         ) : (
-          <div className='text-muted-foreground rounded-md border border-dashed px-3 py-5 text-center text-sm'>
+          <div className='text-muted-foreground rounded border border-dashed px-2.5 py-2 text-center text-xs sm:col-span-2'>
             {t('No quota windows reported.')}
           </div>
         )}
@@ -257,9 +272,9 @@ export function UpstreamQuotaPanel() {
   let dashboardContent
   if (quotaQuery.isLoading) {
     dashboardContent = (
-      <div className='grid gap-4 lg:grid-cols-2'>
+      <div className='grid gap-2 lg:grid-cols-2'>
         {SKELETON_KEYS.map((key) => (
-          <Skeleton key={key} className='h-72 rounded-lg' />
+          <Skeleton key={key} className='h-44 rounded-md' />
         ))}
       </div>
     )
@@ -273,32 +288,32 @@ export function UpstreamQuotaPanel() {
             : undefined
         }
         onRetry={() => void quotaQuery.refetch()}
-        className='min-h-[260px]'
+        className='min-h-[180px]'
       />
     )
   } else if (!dashboard?.entities.length) {
     dashboardContent = (
-      <div className='text-muted-foreground rounded-lg border border-dashed py-12 text-center text-sm'>
+      <div className='text-muted-foreground rounded-md border border-dashed py-7 text-center text-sm'>
         {t('No upstream quota entities reported.')}
       </div>
     )
   } else {
     dashboardContent = (
-      <div className='space-y-4'>
+      <div className='space-y-2'>
         {groupEntitiesByProvider(dashboard.entities).map((group) => (
           <section
             key={group.provider || 'unknown'}
-            className='bg-muted/20 space-y-3 rounded-lg border p-3 sm:p-4'
+            className='bg-muted/20 rounded-md border p-2'
           >
-            <div className='flex flex-wrap items-center justify-between gap-2 px-1'>
-              <h4 className='font-semibold'>
+            <div className='mb-1.5 flex items-center justify-between gap-2 px-0.5'>
+              <h4 className='text-sm font-semibold'>
                 {getProviderLabel(group.provider, t)}
               </h4>
-              <span className='text-muted-foreground text-xs'>
+              <span className='text-muted-foreground text-[11px]'>
                 {t('{{count}} accounts', { count: group.entities.length })}
               </span>
             </div>
-            <div className='grid gap-4 lg:grid-cols-2'>
+            <div className='grid gap-2 lg:grid-cols-2'>
               {group.entities.map((entity) => (
                 <QuotaEntityCard key={entity.entity_id} entity={entity} />
               ))}
@@ -310,16 +325,16 @@ export function UpstreamQuotaPanel() {
   }
 
   return (
-    <section className='space-y-4'>
-      <div className='bg-card rounded-lg border px-4 py-3 shadow-xs sm:px-5'>
-        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='flex items-center gap-2'>
-            <span className='bg-muted text-muted-foreground inline-flex size-7 items-center justify-center rounded-md'>
-              <Gauge className='size-4' aria-hidden='true' />
+    <section className='space-y-2'>
+      <div className='bg-card rounded-md border px-3 py-2.5 shadow-xs'>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <div className='flex min-w-0 items-center gap-2'>
+            <span className='bg-muted text-muted-foreground inline-flex size-6 shrink-0 items-center justify-center rounded'>
+              <Gauge className='size-3.5' aria-hidden='true' />
             </span>
-            <div>
+            <div className='min-w-0'>
               <h3 className='text-sm font-semibold'>{t('Upstream Quota')}</h3>
-              <p className='text-muted-foreground mt-0.5 text-xs'>
+              <p className='text-muted-foreground truncate text-[11px]'>
                 {generatedAt
                   ? t('Snapshot generated at {{time}}', { time: generatedAt })
                   : t('Read-only remaining quota and freshness by account.')}
@@ -330,24 +345,28 @@ export function UpstreamQuotaPanel() {
             type='button'
             variant='outline'
             size='sm'
+            className='h-7 px-2 text-xs'
             onClick={() => void quotaQuery.refetch()}
             disabled={quotaQuery.isFetching}
           >
             <RefreshCw
               data-icon='inline-start'
-              className={cn('size-3.5', refreshing && 'animate-spin')}
+              className={cn('size-3', refreshing && 'animate-spin')}
               aria-hidden='true'
             />
             {refreshing ? t('Refreshing...') : t('Refresh')}
           </Button>
         </div>
         {dashboard && (
-          <div className='mt-3 flex flex-wrap gap-2'>
+          <div className='mt-2 flex flex-wrap items-center gap-1'>
             {statuses.map((status) => (
               <Badge
                 key={status}
                 variant='secondary'
-                className={STATUS_CLASS_NAME[status]}
+                className={cn(
+                  'h-5 px-1.5 text-[10px]',
+                  STATUS_CLASS_NAME[status]
+                )}
               >
                 {t(`upstreamQuota.status.${status}`, {
                   defaultValue: status,
@@ -355,6 +374,9 @@ export function UpstreamQuotaPanel() {
                 : {dashboard.counts[status] ?? 0}
               </Badge>
             ))}
+            <span className='text-muted-foreground ml-auto text-[10px]'>
+              {t('Higher priority routes first')}
+            </span>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 )
 
 const maxUpstreamQuotaFileSize = 2 << 20
@@ -32,19 +34,27 @@ type UpstreamQuotaOwnership struct {
 	ChannelIDs []int64 `json:"channel_ids,omitempty"`
 }
 
+type UpstreamQuotaChannel struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Priority int64  `json:"priority"`
+	Status   int    `json:"status"`
+}
+
 type UpstreamQuotaEntity struct {
-	EntityID              string                `json:"entity_id"`
-	DisplayName           string                `json:"display_name"`
-	Provider              string                `json:"provider"`
-	Status                string                `json:"status"`
-	StatusMessage         string                `json:"status_message"`
-	AccountIDs            []int64               `json:"account_ids,omitempty"`
-	GroupIDs              []int64               `json:"group_ids,omitempty"`
-	ChannelIDs            []int64               `json:"channel_ids,omitempty"`
-	Windows               []UpstreamQuotaWindow `json:"windows,omitempty"`
-	FetchedAt             time.Time             `json:"fetched_at,omitempty"`
-	AvailableAccountCount *int                  `json:"available_account_count,omitempty"`
-	Stale                 bool                  `json:"stale"`
+	EntityID              string                 `json:"entity_id"`
+	DisplayName           string                 `json:"display_name"`
+	Provider              string                 `json:"provider"`
+	Status                string                 `json:"status"`
+	StatusMessage         string                 `json:"status_message"`
+	AccountIDs            []int64                `json:"account_ids,omitempty"`
+	GroupIDs              []int64                `json:"group_ids,omitempty"`
+	ChannelIDs            []int64                `json:"channel_ids,omitempty"`
+	Channels              []UpstreamQuotaChannel `json:"channels,omitempty"`
+	Windows               []UpstreamQuotaWindow  `json:"windows,omitempty"`
+	FetchedAt             time.Time              `json:"fetched_at,omitempty"`
+	AvailableAccountCount *int                   `json:"available_account_count,omitempty"`
+	Stale                 bool                   `json:"stale"`
 }
 
 type UpstreamQuotaCounts struct {
@@ -130,11 +140,15 @@ func LoadUpstreamQuotaDashboard(reportPath, ownershipPath string, now time.Time,
 			status = "unknown"
 		}
 		entityOwnership := ownership.Entities[source.EntityID]
+		channels, err := loadUpstreamQuotaChannels(entityOwnership.ChannelIDs)
+		if err != nil {
+			return nil, fmt.Errorf("load channels for entity %q: %w", source.EntityID, err)
+		}
 		entity := UpstreamQuotaEntity{
 			EntityID: source.EntityID, DisplayName: source.DisplayName, Provider: source.Channel,
 			Status: status, StatusMessage: upstreamQuotaStatusMessage(status),
 			AccountIDs: entityOwnership.AccountIDs, GroupIDs: entityOwnership.GroupIDs, ChannelIDs: entityOwnership.ChannelIDs,
-			Windows: source.Windows, FetchedAt: source.FetchedAt,
+			Channels: channels, Windows: source.Windows, FetchedAt: source.FetchedAt,
 			AvailableAccountCount: source.AvailableAccountCount,
 		}
 		entity.Stale = dashboard.Stale || source.FetchedAt.IsZero() || source.FetchedAt.After(now.Add(time.Minute)) || now.Sub(source.FetchedAt) > maxAge
@@ -148,6 +162,29 @@ func LoadUpstreamQuotaDashboard(reportPath, ownershipPath string, now time.Time,
 	}
 	dashboard.EntityCount = len(dashboard.Entities)
 	return dashboard, nil
+}
+
+func loadUpstreamQuotaChannels(ids []int64) ([]UpstreamQuotaChannel, error) {
+	if len(ids) == 0 || model.DB == nil {
+		return nil, nil
+	}
+	rows, err := model.GetChannelPublicSummariesByIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+	channels := make([]UpstreamQuotaChannel, 0, len(rows))
+	for _, row := range rows {
+		channels = append(channels, UpstreamQuotaChannel{
+			ID: row.ID, Name: row.Name, Priority: row.Priority, Status: row.Status,
+		})
+	}
+	slices.SortFunc(channels, func(a, b UpstreamQuotaChannel) int {
+		if priorityOrder := cmp.Compare(b.Priority, a.Priority); priorityOrder != 0 {
+			return priorityOrder
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	return channels, nil
 }
 
 func readUpstreamQuotaFile(path string) ([]byte, error) {

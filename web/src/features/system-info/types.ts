@@ -99,6 +99,13 @@ export type UpstreamQuotaWindow = {
   duration_seconds?: number
 }
 
+export type UpstreamQuotaChannel = {
+  id: number
+  name: string
+  priority: number
+  status: number
+}
+
 export type UpstreamQuotaEntity = {
   entity_id: string
   display_name: string
@@ -108,6 +115,7 @@ export type UpstreamQuotaEntity = {
   account_ids?: number[]
   group_ids?: number[]
   channel_ids?: number[]
+  channels?: UpstreamQuotaChannel[]
   windows?: UpstreamQuotaWindow[]
   fetched_at?: string
   available_account_count?: number
