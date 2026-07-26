@@ -21,11 +21,19 @@ import { api } from '@/lib/api'
 import type {
   SystemInstanceDeleteResponse,
   SystemInstanceListResponse,
+  UpstreamQuotaDashboardResponse,
 } from './types'
 
 export async function listSystemInstances() {
   const res = await api.get<SystemInstanceListResponse>(
     '/api/system-info/instances'
+  )
+  return res.data
+}
+
+export async function getUpstreamQuotaDashboard() {
+  const res = await api.get<UpstreamQuotaDashboardResponse>(
+    '/api/system-info/upstream-quota'
   )
   return res.data
 }

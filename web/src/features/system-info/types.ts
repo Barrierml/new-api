@@ -78,6 +78,58 @@ export type SystemInstanceListResponse = {
   data?: SystemInstance[]
 }
 
+export type UpstreamQuotaStatus =
+  | 'available'
+  | 'limited'
+  | 'exhausted'
+  | 'unknown'
+  | 'error'
+  | 'deferred'
+
+export type UpstreamQuotaWindow = {
+  key?: string
+  kind?: string
+  label?: string
+  unit?: string
+  limit?: number
+  used?: number
+  remaining?: number
+  remaining_pct?: number
+  reset_at?: number
+  duration_seconds?: number
+}
+
+export type UpstreamQuotaEntity = {
+  entity_id: string
+  display_name: string
+  provider: string
+  status: UpstreamQuotaStatus
+  status_message: string
+  account_ids?: number[]
+  group_ids?: number[]
+  channel_ids?: number[]
+  windows?: UpstreamQuotaWindow[]
+  fetched_at?: string
+  available_account_count?: number
+  stale: boolean
+}
+
+export type UpstreamQuotaCounts = Record<UpstreamQuotaStatus | 'stale', number>
+
+export type UpstreamQuotaDashboard = {
+  generated_at: string
+  entity_count: number
+  counts: UpstreamQuotaCounts
+  entities: UpstreamQuotaEntity[]
+  stale: boolean
+}
+
+export type UpstreamQuotaDashboardResponse = {
+  success: boolean
+  message: string
+  data?: UpstreamQuotaDashboard
+}
+
 export type SystemInstanceDeleteResponse = {
   success: boolean
   message: string
