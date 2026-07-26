@@ -22,7 +22,10 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
+import { UpstreamQuotaPanel } from '@/features/system-info/components/upstream-quota-panel'
+import { ROLE } from '@/lib/roles'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { getOperationsOverview } from './api'
 import { ActiveUsersTable } from './components/active-users-table'
@@ -31,6 +34,9 @@ import { RecentLogsPanel } from './components/recent-logs-panel'
 
 export function Operations() {
   const { t } = useTranslation()
+  const isRoot = useAuthStore(
+    (state) => state.auth.user?.role === ROLE.SUPER_ADMIN
+  )
 
   const overviewQuery = useQuery({
     queryKey: ['operations-overview'],
@@ -58,13 +64,17 @@ export function Operations() {
           disabled={overviewQuery.isFetching}
         >
           <RefreshCw
-            className={cn('size-3.5', overviewQuery.isFetching && 'animate-spin')}
+            className={cn(
+              'size-3.5',
+              overviewQuery.isFetching && 'animate-spin'
+            )}
           />
           {t('Refresh')}
         </Button>
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className='flex flex-col gap-4'>
+          {isRoot && <UpstreamQuotaPanel />}
           <OperationsStatCards
             cards={data?.cards}
             loading={overviewQuery.isLoading}
