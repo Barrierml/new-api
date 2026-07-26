@@ -95,6 +95,13 @@ func (p *GenericOAuthProvider) ExchangeToken(ctx context.Context, code string, c
 	logger.LogDebug(ctx, "[OAuth-Generic-%s] ExchangeToken: code=%s...", p.config.Slug, code[:min(len(code), 10)])
 
 	redirectUri := fmt.Sprintf("%s/oauth/%s", system_setting.ServerAddress, p.config.Slug)
+	// PAR 兼容:Google 的 OAuth App 在 Console 里注册的是 PAR 旧回调路径,
+	// 前端授权时发的也是旧路径(见 web LEGACY_PAR_OAUTH_SLUGS);token 交换
+	// 必须回传同一个 redirect_uri,否则 Google 报 redirect_uri_mismatch。
+	// 302 桥会把旧路径转回 SPA。Console 若改注册新路径后此分支可删。
+	if p.config.Slug == "google" {
+		redirectUri = fmt.Sprintf("%s/par/user/auth/oauth/%s/callback", system_setting.ServerAddress, p.config.Slug)
+	}
 	values := url.Values{}
 	values.Set("grant_type", "authorization_code")
 	values.Set("code", code)

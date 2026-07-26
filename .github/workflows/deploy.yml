@@ -32,7 +32,7 @@ jobs:
       REGISTRY: registry.cn-hongkong.aliyuncs.com
       NAMESPACE: shiroha/new-api
       REP_ID: tako
-      HEALTH_URL: https://new-tako.shiroha.tech/api/status
+      HEALTH_URL: https://tako.shiroha.tech/api/status
 
     steps:
       - uses: actions/checkout@v4
