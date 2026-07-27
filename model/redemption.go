@@ -368,7 +368,8 @@ func RedemptionHealthCounts() (enabledValid, used, disabled, expired int64, err 
 
 // ExistingRedemptionKeys 返回 keys 中实际存在于 redemptions 表的子集(用于孤儿码检测)。
 // 不用 WHERE key IN (?) —— GORM 对带引号 "key" 列 + 切片 IN 的绑定有怪癖(漏匹配/只回 1 条)。
-// redemptions 表很小,直接 Pluck 全部 key 进内存做 set 比对,又准又稳。
+// redemptions 表小,Pluck 全部 key 进内存做 set 比对。注意:key 列是 char(32),历史 16
+// 字符码被 PG 用空格右填充到 32 位,必须 TrimSpace 再比对(否则 16 字符码永远匹配不上)。
 func ExistingRedemptionKeys(keys []string) (map[string]bool, error) {
 	existing := make(map[string]bool, len(keys))
 	if len(keys) == 0 {
@@ -384,10 +385,10 @@ func ExistingRedemptionKeys(keys []string) (map[string]bool, error) {
 	}
 	prodSet := make(map[string]bool, len(allKeys))
 	for _, k := range allKeys {
-		prodSet[k] = true
+		prodSet[strings.TrimSpace(k)] = true // char(32) 右填充空格,trim 后才是真 key
 	}
 	for _, k := range keys {
-		if prodSet[k] {
+		if prodSet[strings.TrimSpace(k)] {
 			existing[k] = true
 		}
 	}
