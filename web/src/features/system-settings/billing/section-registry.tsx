@@ -65,6 +65,9 @@ const BILLING_SECTIONS = [
           TopUpLink: settings.TopUpLink,
           general_setting: {
             docs_link: settings['general_setting.docs_link'],
+            support_qrcode_url: settings['general_setting.support_qrcode_url'],
+            support_qrcode_description:
+              settings['general_setting.support_qrcode_description'],
           },
           quota_setting: {
             enable_free_model_pre_consume:

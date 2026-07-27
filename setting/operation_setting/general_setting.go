@@ -12,6 +12,9 @@ const (
 
 type GeneralSetting struct {
 	DocsLink            string `json:"docs_link"`
+	// 客服二维码：企业微信客服链接（前端 StyledQRCode 渲染成二维码）。空=不展示
+	SupportQRCodeURL         string `json:"support_qrcode_url"`
+	SupportQRCodeDescription string `json:"support_qrcode_description"`
 	PingIntervalEnabled bool   `json:"ping_interval_enabled"`
 	PingIntervalSeconds int    `json:"ping_interval_seconds"`
 	// 当前站点额度展示类型：USD / CNY / TOKENS
@@ -25,6 +28,8 @@ type GeneralSetting struct {
 // 默认配置
 var generalSetting = GeneralSetting{
 	DocsLink:                   "https://docs.newapi.pro",
+	SupportQRCodeURL:           "https://work.weixin.qq.com/u/vc934b54a878034a94?v=5.0.3.63936&bb=931bd799b5",
+	SupportQRCodeDescription:   "工作时间 9:00 - 22:00 · 快速响应",
 	PingIntervalEnabled:        false,
 	PingIntervalSeconds:        60,
 	QuotaDisplayType:           QuotaDisplayTypeUSD,

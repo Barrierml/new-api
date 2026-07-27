@@ -25,6 +25,7 @@ import { formatNumber } from '@/lib/format'
 
 import { formatCreemPrice } from '../../lib/format'
 import type { CreemProduct } from '../../types'
+import { SupportContact } from '../support-contact'
 
 interface CreemConfirmDialogProps {
   open: boolean
@@ -86,6 +87,8 @@ export function CreemConfirmDialog({
           <span className='text-muted-foreground'>{t('Quota')}</span>
           <span className='font-medium'>{formatNumber(product.quota)}</span>
         </div>
+
+        <SupportContact variant='inline' />
       </div>
     </Dialog>
   )

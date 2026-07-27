@@ -251,6 +251,8 @@ export type BillingSettings = {
   QuotaForInvitee: number
   TopUpLink: string
   'general_setting.docs_link': string
+  'general_setting.support_qrcode_url': string
+  'general_setting.support_qrcode_description': string
   'quota_setting.enable_free_model_pre_consume': boolean
   QuotaPerUnit: number
   USDExchangeRate: number

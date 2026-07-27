@@ -5426,7 +5426,23 @@
     "upstreamQuota.entity.grok-main": "SuperGrok",
     "upstreamQuota.entity.openai-shiroha425": "OpenAI OAuth 账号 shiroha425",
     "upstreamQuota.entity.ollama-cloud-main": "Ollama Cloud",
-    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员"
+    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员",
+    "Contact support": "联系客服",
+    "Enterprise WeChat": "企业微信",
+    "Scan to add WeChat Work": "扫码添加企业微信",
+    "Working hours 9:00 - 22:00 · Fast response": "工作时间 9:00 - 22:00 · 快速响应",
+    "Working hours 9:00 - 22:00": "工作时间 9:00 - 22:00",
+    "Support QR Code URL": "客服二维码链接",
+    "Support QR Code Description": "客服二维码描述",
+    "Caption shown under the support QR code": "二维码下方显示的说明文字",
+    "A contact URL (e.g. Enterprise WeChat support link) rendered as a QR code in the wallet and purchase dialogs. Empty = hidden.": "客服联系链接(如企业微信客服链接),会在钱包页和购买弹窗中渲染为二维码。留空则不展示。",
+    "https://work.weixin.qq.com/...": "https://work.weixin.qq.com/...",
+    "Enterprise / Bank Transfer": "企业 / 对公支付",
+    "Supports invoicing to organizations and bank transfer payments. Please contact support to proceed.": "支持为企业组织开具发票、支持对公转账付款,请联系客服办理。",
+    "Scan to contact support": "扫码联系客服",
+    "Scan with WeChat to contact support": "微信扫码联系客服",
+    "Please scan with WeChat": "请使用微信扫描",
+    "Scan with WeChat": "微信扫码"
   },
   "Display currency of the plan price.": "套餐价格的展示币种。"
 }

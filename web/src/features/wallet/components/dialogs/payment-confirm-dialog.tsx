@@ -35,6 +35,7 @@ import { formatLocalCurrencyAmount } from '@/lib/currency'
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
 import { formatCurrency, getPaymentIcon } from '../../lib'
 import type { PaymentMethod } from '../../types'
+import { SupportContact } from '../support-contact'
 
 interface PaymentConfirmDialogProps {
   open: boolean
@@ -140,6 +141,8 @@ export function PaymentConfirmDialog({
             </div>
           </div>
         </div>
+
+        <SupportContact variant='inline' />
 
         <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
           <AlertDialogCancel disabled={processing}>

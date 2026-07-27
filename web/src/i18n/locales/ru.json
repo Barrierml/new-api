@@ -5362,6 +5362,8 @@
     "Account IDs": "账号 ID",
     "Group IDs": "分组 ID",
     "Channel IDs": "渠道 ID",
+    "Priority {{priority}}": "优先级 {{priority}}",
+    "Higher priority routes first": "数值越大越优先",
     "Collected at {{time}}": "采集于 {{time}}",
     "Collection time unavailable": "暂无采集时间",
     "No quota windows reported.": "未上报额度窗口。",
@@ -5424,7 +5426,23 @@
     "upstreamQuota.entity.grok-main": "SuperGrok",
     "upstreamQuota.entity.openai-shiroha425": "OpenAI OAuth 账号 shiroha425",
     "upstreamQuota.entity.ollama-cloud-main": "Ollama Cloud",
-    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员"
+    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员",
+    "Contact support": "Contact support",
+    "Enterprise WeChat": "Enterprise WeChat",
+    "Scan to add WeChat Work": "Scan to add WeChat Work",
+    "Working hours 9:00 - 22:00 · Fast response": "Working hours 9:00 - 22:00 · Fast response",
+    "Working hours 9:00 - 22:00": "Working hours 9:00 - 22:00",
+    "Support QR Code URL": "Support QR Code URL",
+    "Support QR Code Description": "Support QR Code Description",
+    "Caption shown under the support QR code": "Caption shown under the support QR code",
+    "A contact URL (e.g. Enterprise WeChat support link) rendered as a QR code in the wallet and purchase dialogs. Empty = hidden.": "A contact URL (e.g. Enterprise WeChat support link) rendered as a QR code in the wallet and purchase dialogs. Empty = hidden.",
+    "https://work.weixin.qq.com/...": "https://work.weixin.qq.com/...",
+    "Enterprise / Bank Transfer": "Enterprise / Bank Transfer",
+    "Supports invoicing to organizations and bank transfer payments. Please contact support to proceed.": "Supports invoicing to organizations and bank transfer payments. Please contact support to proceed.",
+    "Scan to contact support": "Scan to contact support",
+    "Scan with WeChat to contact support": "Scan with WeChat to contact support",
+    "Please scan with WeChat": "Please scan with WeChat",
+    "Scan with WeChat": "Scan with WeChat"
   },
   "Display currency of the plan price.": "Валюта отображения цены плана."
 }

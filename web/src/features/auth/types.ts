@@ -121,6 +121,9 @@ export interface SystemStatus {
     self_use_mode_enabled?: boolean
     display_in_currency?: boolean
     display_token_stat_enabled?: boolean
+    docs_link?: string
+    support_qrcode_url?: string
+    support_qrcode_description?: string
     quota_per_unit?: number
     quota_display_type?: string
     usd_exchange_rate?: number

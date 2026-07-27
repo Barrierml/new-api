@@ -73,6 +73,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { TopupInfo } from '../types'
+import { SupportContact } from './support-contact'
 
 interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
@@ -828,6 +829,7 @@ export function SubscriptionPlansCard({
                     'After payment succeeds, your plan activates automatically — no redemption code needed. Payments are processed by CatFK.'
                   )}
                 </p>
+                <SupportContact variant='inline' />
               </div>
             </>
           )}

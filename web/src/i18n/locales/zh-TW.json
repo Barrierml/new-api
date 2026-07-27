@@ -5362,6 +5362,8 @@
     "Account IDs": "账号 ID",
     "Group IDs": "分组 ID",
     "Channel IDs": "渠道 ID",
+    "Priority {{priority}}": "优先级 {{priority}}",
+    "Higher priority routes first": "数值越大越优先",
     "Collected at {{time}}": "采集于 {{time}}",
     "Collection time unavailable": "暂无采集时间",
     "No quota windows reported.": "未上报额度窗口。",
@@ -5424,7 +5426,23 @@
     "upstreamQuota.entity.grok-main": "SuperGrok",
     "upstreamQuota.entity.openai-shiroha425": "OpenAI OAuth 账号 shiroha425",
     "upstreamQuota.entity.ollama-cloud-main": "Ollama Cloud",
-    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员"
+    "upstreamQuota.entity.kimi-main": "Kimi Coding 香港会员",
+    "Contact support": "聯繫客服",
+    "Enterprise WeChat": "企業微信",
+    "Scan to add WeChat Work": "掃碼添加企業微信",
+    "Working hours 9:00 - 22:00 · Fast response": "工作時間 9:00 - 22:00 · 快速響應",
+    "Working hours 9:00 - 22:00": "工作時間 9:00 - 22:00",
+    "Support QR Code URL": "客服二維碼連結",
+    "Support QR Code Description": "客服二維碼描述",
+    "Caption shown under the support QR code": "二維碼下方顯示的說明文字",
+    "A contact URL (e.g. Enterprise WeChat support link) rendered as a QR code in the wallet and purchase dialogs. Empty = hidden.": "客服聯繫連結(如企業微信客服連結),會在錢包頁和購買彈窗中渲染為二維碼。留空則不展示。",
+    "https://work.weixin.qq.com/...": "https://work.weixin.qq.com/...",
+    "Enterprise / Bank Transfer": "企業 / 對公支付",
+    "Supports invoicing to organizations and bank transfer payments. Please contact support to proceed.": "支援為企業組織開立發票、支援對公轉帳付款,請聯繫客服辦理。",
+    "Scan to contact support": "掃碼聯繫客服",
+    "Scan with WeChat to contact support": "微信掃碼聯繫客服",
+    "Please scan with WeChat": "請使用微信掃描",
+    "Scan with WeChat": "微信掃碼"
   },
   "Display currency of the plan price.": "套餐價格的展示幣種。"
 }

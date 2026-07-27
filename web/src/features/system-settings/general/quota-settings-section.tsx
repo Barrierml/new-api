@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { StyledQRCode } from '@/components/qr-code-styling'
 import { formatQuota } from '@/lib/format'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -58,6 +59,8 @@ const quotaSchema = z.object({
   TopUpLink: z.string(),
   general_setting: z.object({
     docs_link: z.string(),
+    support_qrcode_url: z.string(),
+    support_qrcode_description: z.string(),
   }),
   quota_setting: z.object({
     enable_free_model_pre_consume: z.boolean(),
@@ -297,6 +300,55 @@ export function QuotaSettingsSection({
                   </FormControl>
                   <FormDescription>
                     {t('Link to your documentation site')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='general_setting.support_qrcode_url'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Support QR Code URL')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t(
+                        'https://work.weixin.qq.com/...'
+                      )}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'A contact URL (e.g. Enterprise WeChat support link) rendered as a QR code in the wallet and purchase dialogs. Empty = hidden.'
+                    )}
+                  </FormDescription>
+                  {field.value ? (
+                    <div className='mt-2 flex justify-center rounded-lg border bg-white p-2'>
+                      <StyledQRCode data={field.value} size={120} />
+                    </div>
+                  ) : null}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='general_setting.support_qrcode_description'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Support QR Code Description')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t('Working hours 9:00 - 22:00')}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Caption shown under the support QR code')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

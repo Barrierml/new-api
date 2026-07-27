@@ -31,6 +31,8 @@ const defaultBillingSettings: BillingSettings = {
   QuotaForInvitee: 0,
   TopUpLink: '',
   'general_setting.docs_link': '',
+  'general_setting.support_qrcode_url': '',
+  'general_setting.support_qrcode_description': '',
   'quota_setting.enable_free_model_pre_consume': true,
   QuotaPerUnit: 500000,
   USDExchangeRate: 7,
