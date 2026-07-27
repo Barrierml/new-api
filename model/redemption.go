@@ -366,7 +366,9 @@ func RedemptionHealthCounts() (enabledValid, used, disabled, expired int64, err 
 	return
 }
 
-// ExistingRedemptionKeys 返回 keys 中实际存在于 redemptions 表的子集(孤儿码检测用)。
+// ExistingRedemptionKeys 返回 keys 中实际存在于 redemptions 表的子集(用于孤儿码检测)。
+// 用 Raw SQL 手建 IN 列表,绕开 GORM 对带引号 "key" 列 + 切片 IN 的条件解析怪癖
+// (GORM Pluck 版本对历史 16 字符码漏匹配)。
 func ExistingRedemptionKeys(keys []string) (map[string]bool, error) {
 	existing := make(map[string]bool, len(keys))
 	if len(keys) == 0 {
@@ -376,12 +378,23 @@ func ExistingRedemptionKeys(keys []string) (map[string]bool, error) {
 	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
 		keyCol = "\"key\""
 	}
-	var found []string
-	if err := DB.Model(&Redemption{}).Where(keyCol+" IN ?", keys).Pluck(keyCol, &found).Error; err != nil {
+	placeholders := make([]string, len(keys))
+	args := make([]interface{}, len(keys))
+	for i, k := range keys {
+		placeholders[i] = "?"
+		args[i] = k
+	}
+	query := fmt.Sprintf("SELECT %s FROM redemptions WHERE %s IN (%s)", keyCol, keyCol, strings.Join(placeholders, ","))
+	rows, err := DB.Raw(query, args...).Rows()
+	if err != nil {
 		return nil, err
 	}
-	for _, k := range found {
-		existing[k] = true
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		if err := DB.ScanRows(rows, &k); err == nil {
+			existing[k] = true
+		}
 	}
 	return existing, nil
 }

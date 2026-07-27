@@ -65,8 +65,10 @@ func GetCatfkReplenishOverview(c *gin.Context) {
 	enabledValid, used, disabled, expired, _ := model.RedemptionHealthCounts()
 
 	orphanCount := -1
+	existingCount := -1
 	if len(allSecrets) > 0 {
 		if existing, err := model.ExistingRedemptionKeys(allSecrets); err == nil {
+			existingCount = len(existing)
 			orphans := 0
 			for _, s := range allSecrets {
 				if !existing[s] {
@@ -78,11 +80,13 @@ func GetCatfkReplenishOverview(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"status":       status,
-		"stock":        stock,
-		"health":       gin.H{"valid": enabledValid, "used": used, "disabled": disabled, "expired": expired},
-		"orphan_count": orphanCount,
-		"generated_at": time.Now().Unix(),
+		"status":             status,
+		"stock":              stock,
+		"health":             gin.H{"valid": enabledValid, "used": used, "disabled": disabled, "expired": expired},
+		"orphan_count":       orphanCount,
+		"shelf_secret_count": len(allSecrets), // 调试:货架可用码总数
+		"existing_key_count": existingCount,   // 调试:其中在生产库的数量
+		"generated_at":       time.Now().Unix(),
 	}
 	if catfkErr != "" {
 		data["catfk_error"] = catfkErr
