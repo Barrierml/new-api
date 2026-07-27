@@ -283,18 +283,14 @@ func SoldCards(goodsKey string, exclude map[string]bool) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	m, err := apiPost(cardListAPI, map[string]interface{}{"goods_id": gid, "status": 1}, true)
+	m, err := apiPost(cardListAPI, map[string]interface{}{
+		"goods_id": gid, "current": 1, "pageSize": 500, "keywords": "", "status": "", "first": "",
+	}, true)
 	if err != nil {
 		return nil, err
 	}
-	var items []interface{}
-	if lst, ok := m["list"].([]interface{}); ok {
-		items = lst
-	} else if d, ok := m["data"].([]interface{}); ok {
-		items = d
-	}
 	var cards []string
-	for _, it := range items {
+	for _, it := range dataList(m) {
 		c, _ := it.(map[string]interface{})
 		if c == nil {
 			continue
@@ -308,18 +304,28 @@ func SoldCards(goodsKey string, exclude map[string]bool) ([]string, error) {
 	return cards, nil
 }
 
+// dataList 从 catfk 响应 {code,msg,data:{total,list:[...]}} 里取 list。
+// catfk 的 list 接口统一把数组包在 data.list(注意 data 是 dict 不是数组)。
+func dataList(m map[string]interface{}) []interface{} {
+	if d, ok := m["data"].(map[string]interface{}); ok {
+		if lst, ok := d["list"].([]interface{}); ok {
+			return lst
+		}
+	}
+	if lst, ok := m["list"].([]interface{}); ok { // 兜底:个别响应 list 在顶层
+		return lst
+	}
+	return nil
+}
+
 func goodsID(goodsKey string) (int, error) {
-	m, err := apiPost(goodsListAPI, map[string]interface{}{}, true)
+	m, err := apiPost(goodsListAPI, map[string]interface{}{
+		"current": 1, "pageSize": 100, "goods_type": "card", "status": 999, "name": "", "is_proxy": "0",
+	}, true)
 	if err != nil {
 		return 0, err
 	}
-	var items []interface{}
-	if d, ok := m["data"].([]interface{}); ok {
-		items = d
-	} else if g, ok := m["goods"].([]interface{}); ok {
-		items = g
-	}
-	for _, it := range items {
+	for _, it := range dataList(m) {
 		g, _ := it.(map[string]interface{})
 		if g == nil {
 			continue
@@ -345,18 +351,14 @@ func AvailableStockAndSecrets(goodsKey string) (int, []string, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	m, err := apiPost(cardListAPI, map[string]interface{}{"goods_id": gid, "status": 0}, true)
+	m, err := apiPost(cardListAPI, map[string]interface{}{
+		"goods_id": gid, "current": 1, "pageSize": 500, "keywords": "", "status": "", "first": "",
+	}, true)
 	if err != nil {
 		return 0, nil, err
 	}
-	var items []interface{}
-	if lst, ok := m["list"].([]interface{}); ok {
-		items = lst
-	} else if d, ok := m["data"].([]interface{}); ok {
-		items = d
-	}
 	var secrets []string
-	for _, it := range items {
+	for _, it := range dataList(m) {
 		if c, ok := it.(map[string]interface{}); ok {
 			if st, _ := c["status"].(float64); int(st) == 0 {
 				if s, _ := c["secret"].(string); s != "" {
