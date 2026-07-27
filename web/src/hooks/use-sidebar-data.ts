@@ -28,6 +28,7 @@ import {
   LayoutDashboard,
   ListTodo,
   MessageSquare,
+  PackagePlus,
   Radio,
   ServerCog,
   Settings,
@@ -150,6 +151,12 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          {
+            title: t('Auto Replenish'),
+            url: '/redemption-codes/auto-replenish',
+            icon: PackagePlus,
+            requiredRole: ROLE.ADMIN,
           },
           {
             title: t('Subscriptions'),

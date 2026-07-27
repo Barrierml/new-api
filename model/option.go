@@ -93,6 +93,10 @@ func InitOptionMap() {
 	common.OptionMap["CatfkMerchantUser"] = setting.CatfkMerchantUser
 	common.OptionMap["CatfkMerchantPass"] = setting.CatfkMerchantPass
 	common.OptionMap["CatfkMerchantToken"] = setting.CatfkMerchantToken
+	common.OptionMap["CatfkReplenishEnabled"] = strconv.FormatBool(setting.CatfkReplenishEnabled)
+	common.OptionMap["CatfkStockLowWater"] = strconv.Itoa(setting.CatfkStockLowWater)
+	common.OptionMap["CatfkStockBatch"] = strconv.Itoa(setting.CatfkStockBatch)
+	common.OptionMap["CatfkProxyURLs"] = setting.CatfkProxyURLs
 	common.OptionMap["CreemApiKey"] = setting.CreemApiKey
 	common.OptionMap["CreemProducts"] = setting.CreemProducts
 	common.OptionMap["CreemTestMode"] = strconv.FormatBool(setting.CreemTestMode)
@@ -434,6 +438,14 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.CatfkMerchantPass = value
 	case "CatfkMerchantToken":
 		setting.CatfkMerchantToken = value
+	case "CatfkReplenishEnabled":
+		setting.CatfkReplenishEnabled = value == "true"
+	case "CatfkStockLowWater":
+		setting.CatfkStockLowWater, _ = strconv.Atoi(value)
+	case "CatfkStockBatch":
+		setting.CatfkStockBatch, _ = strconv.Atoi(value)
+	case "CatfkProxyURLs":
+		setting.CatfkProxyURLs = value
 	case "CreemApiKey":
 		setting.CreemApiKey = value
 	case "CreemProducts":

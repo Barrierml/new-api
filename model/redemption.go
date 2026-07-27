@@ -346,3 +346,42 @@ func attachRedemptionPlanTitle(redemption *Redemption) {
 	}
 	redemption.SubscriptionPlanTitle = plan.Title
 }
+
+// RedemptionHealthCounts 统计兑换码健康度(给「自动补货」看板用)。
+// enabled_valid:可用且未过期;expired:status=enabled 但过期时间已过;used/disabled 同义。
+func RedemptionHealthCounts() (enabledValid, used, disabled, expired int64, err error) {
+	now := common.GetTimestamp()
+	if err = DB.Model(&Redemption{}).Where("status = ? AND (expired_time = 0 OR expired_time >= ?)", common.RedemptionCodeStatusEnabled, now).Count(&enabledValid).Error; err != nil {
+		return
+	}
+	if err = DB.Model(&Redemption{}).Where("status = ? AND expired_time != 0 AND expired_time < ?", common.RedemptionCodeStatusEnabled, now).Count(&expired).Error; err != nil {
+		return
+	}
+	if err = DB.Model(&Redemption{}).Where("status = ?", common.RedemptionCodeStatusUsed).Count(&used).Error; err != nil {
+		return
+	}
+	if err = DB.Model(&Redemption{}).Where("status = ?", common.RedemptionCodeStatusDisabled).Count(&disabled).Error; err != nil {
+		return
+	}
+	return
+}
+
+// ExistingRedemptionKeys 返回 keys 中实际存在于 redemptions 表的子集(孤儿码检测用)。
+func ExistingRedemptionKeys(keys []string) (map[string]bool, error) {
+	existing := make(map[string]bool, len(keys))
+	if len(keys) == 0 {
+		return existing, nil
+	}
+	keyCol := "`key`"
+	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
+		keyCol = "\"key\""
+	}
+	var found []string
+	if err := DB.Model(&Redemption{}).Where(keyCol+" IN ?", keys).Pluck(keyCol, &found).Error; err != nil {
+		return nil, err
+	}
+	for _, k := range found {
+		existing[k] = true
+	}
+	return existing, nil
+}

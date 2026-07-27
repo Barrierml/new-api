@@ -125,6 +125,7 @@ func main() {
 	// Subscription expiry reminder email (5 days ahead, once per subscription)
 	service.StartSubscriptionExpiryRemindTask()
 	catfk.StartSweeper()
+	catfk.StartReplenisher()
 
 	// Report this process as a system instance so the System Info page can show
 	// all currently alive nodes in multi-instance deployments.

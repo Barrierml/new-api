@@ -3,6 +3,9 @@ package catfk
 import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
+
+	"github.com/bytedance/gopkg/util/gopool"
 )
 
 // CheckAndGrant 查订单支付状态,已付则发货 + 作废卡密 + 原子标记 granted。
@@ -48,6 +51,13 @@ func CheckAndGrant(tradeNo string) (status string, err error) {
 	}
 	MarkCodesUsed(cards, order.UserId)
 	common.SysLog("[catfk] 发货成功 " + tradeNo)
+	// 购买触发补货:发货成功 = 该商品 catfk 库存减 1,异步补回(低于水位才补)。
+	// 让补货在 sweeper 一个轮询周期(30s)内响应购买,而非等 30min 定时。
+	if setting.CatfkReplenishEnabled {
+		if g, ok := Goods[order.GoodsKey]; ok {
+			gopool.Go(func() { replenishGoods(order.GoodsKey, g, "purchase", false) })
+		}
+	}
 	return "granted", nil
 }
 

@@ -271,6 +271,14 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
 		}
+		catfkReplenishRoute := apiRouter.Group("/catfk-replenish")
+		catfkReplenishRoute.Use(middleware.AdminAuth())
+		{
+			catfkReplenishRoute.GET("/overview", controller.GetCatfkReplenishOverview)
+			catfkReplenishRoute.GET("/events", controller.GetCatfkReplenishEvents)
+			catfkReplenishRoute.POST("/run", controller.RunCatfkReplenish)
+			catfkReplenishRoute.PUT("/config", controller.UpdateCatfkReplenishConfig)
+		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
 		logRoute.GET("/stat", middleware.AdminAuth(), controller.GetLogsStat)

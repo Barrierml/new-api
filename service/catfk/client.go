@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/QuantumNous/new-api/setting"
@@ -20,6 +22,7 @@ const (
 	origin        = "https://catfk.com"
 	loginAPI      = origin + "/merchantApi/user/login"
 	cardListAPI   = origin + "/merchantApi/goodsCardStorage/list"
+	cardAddAPI    = origin + "/merchantApi/GoodsCardStorage/add"
 	goodsListAPI  = origin + "/merchantApi/Goods/list"
 	payOrderAPI   = origin + "/shopApi/Pay/order"
 	payQueryAPI   = origin + "/shopApi/Pay/query"
@@ -63,7 +66,27 @@ var (
 	channelAt    time.Time
 )
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{
+	Timeout:   30 * time.Second,
+	Transport: &http.Transport{Proxy: proxyForReq},
+}
+
+var proxyIdx uint64 // atomic;代理池轮询索引
+
+// proxyForReq 从 CatfkProxyURLs(逗号分隔)轮询取一个出口代理;空则直连。
+// 把云猫 API 流量分散到多个出口 IP(如 pbrk generic 通道),避免单 IP 被云猫限流。
+func proxyForReq(req *http.Request) (*url.URL, error) {
+	urls := setting.CatfkProxyURLs
+	if urls == "" {
+		return nil, nil
+	}
+	parts := strings.Split(urls, ",")
+	raw := strings.TrimSpace(parts[int(atomic.AddUint64(&proxyIdx, 1)%uint64(len(parts)))])
+	if raw == "" {
+		return nil, nil
+	}
+	return url.Parse(raw)
+}
 
 func commonHeaders() map[string]string {
 	return map[string]string{
@@ -307,5 +330,65 @@ func goodsID(goodsKey string) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("catfk goods_key %s 未找到", goodsKey)
+}
+
+// AvailableStock 返回某商品可用(status==0,未售)卡密数。补货器据此判断是否低于水位。
+func AvailableStock(goodsKey string) (int, error) {
+	n, _, err := AvailableStockAndSecrets(goodsKey)
+	return n, err
+}
+
+// AvailableStockAndSecrets 返回某商品可用(status==0)卡密的(数量, 明文列表)。
+// 明文用于孤儿码检测(比对生产 redemptions);数量用于水位判断。
+func AvailableStockAndSecrets(goodsKey string) (int, []string, error) {
+	gid, err := goodsID(goodsKey)
+	if err != nil {
+		return 0, nil, err
+	}
+	m, err := apiPost(cardListAPI, map[string]interface{}{"goods_id": gid, "status": 0}, true)
+	if err != nil {
+		return 0, nil, err
+	}
+	var items []interface{}
+	if lst, ok := m["list"].([]interface{}); ok {
+		items = lst
+	} else if d, ok := m["data"].([]interface{}); ok {
+		items = d
+	}
+	var secrets []string
+	for _, it := range items {
+		if c, ok := it.(map[string]interface{}); ok {
+			if st, _ := c["status"].(float64); int(st) == 0 {
+				if s, _ := c["secret"].(string); s != "" {
+					secrets = append(secrets, s)
+				}
+			}
+		}
+	}
+	return len(secrets), secrets, nil
+}
+
+// AddCards 把一批兑换码作为卡密上架到某商品(一行一个,remove_repeat 去重)。
+func AddCards(goodsKey string, secrets []string) (int, error) {
+	if len(secrets) == 0 {
+		return 0, nil
+	}
+	gid, err := goodsID(goodsKey)
+	if err != nil {
+		return 0, err
+	}
+	m, err := apiPost(cardAddAPI, map[string]interface{}{
+		"goods_id":      gid,
+		"content":       strings.Join(secrets, "\n"),
+		"first":         0,
+		"remove_repeat": 1,
+	}, true)
+	if err != nil {
+		return 0, err
+	}
+	if code, _ := m["code"].(float64); int(code) != 1 {
+		return 0, fmt.Errorf("catfk 上架卡密失败: %v", m["msg"])
+	}
+	return len(secrets), nil
 }
 
