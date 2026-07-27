@@ -210,7 +210,9 @@ func calcSubLimitWindow(sub *UserSubscription, limit SubscriptionSubQuotaLimit, 
 
 	case SubQuotaPeriodDay:
 		days := int(limit.PeriodValue)
-		if limit.Natural {
+		// anchor=calendar 同样按自然日对齐(每天 0 点重置),与前端"Calendar aligned"语义一致;
+		// 否则(natural=false 且 anchor=subscription_start)走滚动窗口 [now-days, now)。
+		if limit.Natural || limit.Anchor == SubQuotaAnchorCalendar {
 			start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 			end := start.AddDate(0, 0, days)
 			return start.Unix(), end.Unix(), nil
@@ -229,7 +231,8 @@ func calcSubLimitWindow(sub *UserSubscription, limit SubscriptionSubQuotaLimit, 
 
 	case SubQuotaPeriodMonth:
 		months := int(limit.PeriodValue)
-		if limit.Natural {
+		// anchor=calendar 同样按自然月对齐(每月 1 号 0 点重置),与前端"Calendar aligned"语义一致。
+		if limit.Natural || limit.Anchor == SubQuotaAnchorCalendar {
 			start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
 			end := start.AddDate(0, months, 0)
 			return start.Unix(), end.Unix(), nil
