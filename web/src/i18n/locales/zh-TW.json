@@ -5446,6 +5446,7 @@
   },
   "Display currency of the plan price.": "套餐價格的展示幣種。",
   "Auto Replenish": "自動補貨",
+  "Catfk stock query failed": "雲貓庫存查詢失敗",
   "Failed to load overview": "載入概覽失敗",
   "Daemon": "守護程序",
   "Running": "執行中",

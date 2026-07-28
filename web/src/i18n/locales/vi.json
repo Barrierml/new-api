@@ -5446,6 +5446,7 @@
   },
   "Display currency of the plan price.": "Đơn vị tiền tệ hiển thị của giá gói.",
   "Auto Replenish": "Auto Replenish",
+  "Catfk stock query failed": "Catfk stock query failed",
   "Failed to load overview": "Failed to load overview",
   "Daemon": "Daemon",
   "Running": "Running",

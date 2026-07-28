@@ -98,6 +98,7 @@ export function AutoReplenish() {
           )}
           {data && (
             <>
+              <CatfkErrorBanner error={data.catfk_error} />
               <OrphanBanner orphanCount={data.orphan_count} />
               <StatCards data={data} />
               <ConfigCard data={data} onRun={(gk) => runMutation.mutate(gk)} runPending={runMutation.isPending} />
@@ -137,6 +138,20 @@ function StatCards({ data }: { data: ReplenishOverview }) {
           {c.hint && <div className='mt-1 text-xs text-muted-foreground'>{c.hint}</div>}
         </div>
       ))}
+    </div>
+  )
+}
+
+function CatfkErrorBanner({ error }: { error?: string }) {
+  const { t } = useTranslation()
+  if (!error) return null
+  return (
+    <div className='flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive'>
+      <AlertTriangle className='mt-0.5 size-4 shrink-0' />
+      <div>
+        <div className='font-medium'>{t('Catfk stock query failed')}</div>
+        <div className='mt-1 break-all text-xs'>{error}</div>
+      </div>
     </div>
   )
 }

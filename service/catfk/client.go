@@ -19,15 +19,15 @@ import (
 // 商家 cookie 缓存在内存,过期(401/403 或 code!=1)自动重登。
 
 const (
-	origin        = "https://catfk.com"
-	loginAPI      = origin + "/merchantApi/user/login"
-	cardListAPI   = origin + "/merchantApi/goodsCardStorage/list"
-	cardAddAPI    = origin + "/merchantApi/GoodsCardStorage/add"
-	goodsListAPI  = origin + "/merchantApi/Goods/list"
-	payOrderAPI   = origin + "/shopApi/Pay/order"
-	payQueryAPI   = origin + "/shopApi/Pay/query"
+	origin         = "https://catfk.com"
+	loginAPI       = origin + "/merchantApi/user/login"
+	cardListAPI    = origin + "/merchantApi/goodsCardStorage/list"
+	cardAddAPI     = origin + "/merchantApi/GoodsCardStorage/add"
+	goodsListAPI   = origin + "/merchantApi/Goods/list"
+	payOrderAPI    = origin + "/shopApi/Pay/order"
+	payQueryAPI    = origin + "/shopApi/Pay/query"
 	userChannelAPI = origin + "/shopApi/Shop/getUserChannel"
-	dashboardURL  = origin + "/merchant/dashboard/workplace"
+	dashboardURL   = origin + "/merchant/dashboard/workplace"
 )
 
 // GOODS 映射:goods_key -> 发货类型与值。与 scripts/catfk-checkout.py 保持一致。
@@ -40,12 +40,12 @@ type GoodsGrant struct {
 }
 
 var Goods = map[string]GoodsGrant{
-	"vk898s": {"plan", 2},   // Mini ¥59
-	"e0b3y5": {"plan", 3},   // Pro mini ¥119
-	"r07y8g": {"plan", 1},   // Pro x1 ¥199
-	"uhwx0f": {"plan", 4},   // Pro x2 ¥329
-	"bx9j3s": {"plan", 5},   // Pro x3 ¥499
-	"snae3x": {"plan", 6},   // Pro x4 ¥749
+	"vk898s": {"plan", 2},                  // Mini ¥59
+	"e0b3y5": {"plan", 3},                  // Pro mini ¥119
+	"r07y8g": {"plan", 1},                  // Pro x1 ¥199
+	"uhwx0f": {"plan", 4},                  // Pro x2 ¥329
+	"bx9j3s": {"plan", 5},                  // Pro x3 ¥499
+	"snae3x": {"plan", 6},                  // Pro x4 ¥749
 	"cbcg11": {"quota", 15 * quotaPerUSD},  // ¥5 测试档 (¥1=3)
 	"r5ufqm": {"quota", 60 * quotaPerUSD},  // ¥20 -> $60
 	"ot5e6z": {"quota", 150 * quotaPerUSD}, // ¥50 -> $150
@@ -58,7 +58,7 @@ var channelCodeByPay = map[string]string{"alipay": "AlipayPc", "wechat": "Weixin
 var channelIDFallback = map[string]int{"alipay": 1, "wechat": 4}
 
 var (
-	cookieMu    sync.RWMutex
+	cookieMu     sync.RWMutex
 	cachedCookie string
 
 	channelMu    sync.Mutex
@@ -71,19 +71,22 @@ var httpClient = &http.Client{
 	Transport: &http.Transport{Proxy: proxyForReq},
 }
 
-var proxyIdx uint64 // atomic;代理池轮询索引
+var (
+	proxyIdx         uint64 // atomic;代理池轮询索引
+	environmentProxy = http.ProxyFromEnvironment
+)
 
-// proxyForReq 从 CatfkProxyURLs(逗号分隔)轮询取一个出口代理;空则直连。
-// 把云猫 API 流量分散到多个出口 IP(如 pbrk generic 通道),避免单 IP 被云猫限流。
+// proxyForReq 优先从 CatfkProxyURLs(逗号分隔)轮询取出口代理;
+// 未配置或轮询到空项时回退到 HTTP(S)_PROXY,避免自定义 Transport 绕过容器代理。
 func proxyForReq(req *http.Request) (*url.URL, error) {
 	urls := setting.CatfkProxyURLs
 	if urls == "" {
-		return nil, nil
+		return environmentProxy(req)
 	}
 	parts := strings.Split(urls, ",")
 	raw := strings.TrimSpace(parts[int(atomic.AddUint64(&proxyIdx, 1)%uint64(len(parts)))])
 	if raw == "" {
-		return nil, nil
+		return environmentProxy(req)
 	}
 	return url.Parse(raw)
 }
@@ -116,24 +119,42 @@ func login() error {
 		return fmt.Errorf("catfk login 网络错误: %w", err)
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
-	var parsed struct {
-		Code int `json:"code"`
-		Msg  string `json:"msg"`
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("catfk login 读取响应失败: status=%d: %w", resp.StatusCode, err)
 	}
-	_ = json.Unmarshal(raw, &parsed)
-	// 拼接 Set-Cookie 里的 name=value
-	var parts []string
-	for _, c := range resp.Cookies() {
-		parts = append(parts, c.Name+"="+c.Value)
-	}
-	if parsed.Code != 1 || len(parts) == 0 {
-		return fmt.Errorf("catfk 登录失败: code=%d msg=%s", parsed.Code, parsed.Msg)
+	cookie, err := parseLoginResponse(resp.StatusCode, resp.Header.Get("Content-Type"), raw, resp.Cookies())
+	if err != nil {
+		return err
 	}
 	cookieMu.Lock()
-	cachedCookie = strings.Join(parts, "; ")
+	cachedCookie = cookie
 	cookieMu.Unlock()
 	return nil
+}
+
+func parseLoginResponse(status int, contentType string, raw []byte, cookies []*http.Cookie) (string, error) {
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("catfk login HTTP异常: status=%d content_type=%q bytes=%d", status, contentType, len(raw))
+	}
+	var parsed struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return "", fmt.Errorf("catfk login 响应非JSON: status=%d content_type=%q bytes=%d", status, contentType, len(raw))
+	}
+	if parsed.Code != 1 {
+		return "", fmt.Errorf("catfk 登录失败: code=%d msg=%s", parsed.Code, parsed.Msg)
+	}
+	parts := make([]string, 0, len(cookies))
+	for _, c := range cookies {
+		parts = append(parts, c.Name+"="+c.Value)
+	}
+	if len(parts) == 0 {
+		return "", fmt.Errorf("catfk 登录失败: code=%d 未返回cookie", parsed.Code)
+	}
+	return strings.Join(parts, "; "), nil
 }
 
 func getCookie() string {
@@ -158,10 +179,13 @@ func apiPost(url string, payload interface{}, needAuth bool) (map[string]interfa
 			return nil, 0, err
 		}
 		defer resp.Body.Close()
-		raw, _ := io.ReadAll(resp.Body)
+		raw, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, resp.StatusCode, fmt.Errorf("%s 读取响应失败: status=%d: %w", url, resp.StatusCode, readErr)
+		}
 		var m map[string]interface{}
 		if err := json.Unmarshal(raw, &m); err != nil {
-			return nil, resp.StatusCode, fmt.Errorf("%s 响应非JSON: %.200s", url, string(raw))
+			return nil, resp.StatusCode, fmt.Errorf("%s 响应非JSON: status=%d content_type=%q bytes=%d", url, resp.StatusCode, resp.Header.Get("Content-Type"), len(raw))
 		}
 		return m, resp.StatusCode, nil
 	}
@@ -240,14 +264,14 @@ func refreshChannels() (map[string]int, error) {
 // CreateOrder 下单,返回 tradeNo 和 payurl。
 func CreateOrder(goodsKey string, channelID int, contact string) (tradeNo, payurl string, err error) {
 	payload := map[string]interface{}{
-		"goods_key":       goodsKey,
-		"quantity":        1,
-		"coupon_code":     "",
-		"channel_id":      channelID,
-		"contact":         contact,
-		"query_password":  "",
+		"goods_key":        goodsKey,
+		"quantity":         1,
+		"coupon_code":      "",
+		"channel_id":       channelID,
+		"contact":          contact,
+		"query_password":   "",
 		"select_cards_ids": []interface{}{},
-		"extend":          map[string]string{"juuid": ""},
+		"extend":           map[string]string{"juuid": ""},
 	}
 	m, err := apiPost(payOrderAPI, payload, false)
 	if err != nil {
@@ -393,4 +417,3 @@ func AddCards(goodsKey string, secrets []string) (int, error) {
 	}
 	return len(secrets), nil
 }
-
