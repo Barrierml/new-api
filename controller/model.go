@@ -205,7 +205,13 @@ func getModelListGroups(c *gin.Context) (modelListGroups, error) {
 	}, nil
 }
 
-func ListModels(c *gin.Context, modelType int) {
+// collectUserModelNames resolves the model ids the current request is allowed
+// to use, applying token model limits, user/token group resolution, and (when
+// not in self-use mode) the billing-config filter. It mirrors the rules used by
+// the OpenAI/Anthropic/Gemini ListModels renderers, so every /v1/models shape
+// reports the same available set. On a group-resolution failure it writes the
+// error response itself and returns ok=false.
+func collectUserModelNames(c *gin.Context) (userModelNames []string, ownerByModel map[string]string, ok bool) {
 	acceptUnsetRatioModel := operation_setting.SelfUseModeEnabled
 	if !acceptUnsetRatioModel {
 		userId := c.GetInt("id")
@@ -217,7 +223,7 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 	}
 
-	userModelNames := make([]string, 0)
+	userModelNames = make([]string, 0)
 	modelLimitEnable := common.GetContextKeyBool(c, constant.ContextKeyTokenModelLimitEnabled)
 	var groups modelListGroups
 	var ownerGroups []string
@@ -229,14 +235,14 @@ func ListModels(c *gin.Context, modelType int) {
 				"success": false,
 				"message": "get user group failed",
 			})
-			return
+			return nil, nil, false
 		}
 		ownerGroups = groups.ownerGroups
 	}
 	if modelLimitEnable {
-		s, ok := common.GetContextKey(c, constant.ContextKeyTokenModelLimit)
+		s, limitFound := common.GetContextKey(c, constant.ContextKeyTokenModelLimit)
 		var tokenModelLimit map[string]bool
-		if ok {
+		if limitFound {
 			tokenModelLimit = s.(map[string]bool)
 		} else {
 			tokenModelLimit = map[string]bool{}
@@ -273,9 +279,17 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 	}
 
-	ownerByModel := map[string]string{}
+	ownerByModel = map[string]string{}
 	if len(ownerGroups) > 0 {
 		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups)
+	}
+	return userModelNames, ownerByModel, true
+}
+
+func ListModels(c *gin.Context, modelType int) {
+	userModelNames, ownerByModel, ok := collectUserModelNames(c)
+	if !ok {
+		return
 	}
 	userOpenAiModels := make([]dto.OpenAIModels, 0, len(userModelNames))
 	for _, modelName := range userModelNames {

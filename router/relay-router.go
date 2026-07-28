@@ -23,6 +23,13 @@ func SetRelayRouter(router *gin.Engine) {
 	modelsRouter.Use(middleware.TokenAuth())
 	{
 		modelsRouter.GET("", func(c *gin.Context) {
+			// tako-cli opts into the Codex-form response (the only shape that
+			// carries context_window) via ?client_version=tako-cli. See
+			// controller.ListCodexFormModels.
+			if c.Query("client_version") == controller.CodexFormClientVersion {
+				controller.ListCodexFormModels(c)
+				return
+			}
 			switch {
 			case c.GetHeader("x-api-key") != "" && c.GetHeader("anthropic-version") != "":
 				controller.ListModels(c, constant.ChannelTypeAnthropic)
