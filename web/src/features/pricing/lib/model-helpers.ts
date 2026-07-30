@@ -66,12 +66,25 @@ export function getDisplayGroupRatio(
     : []
   const groupRatio = model.group_ratio || {}
 
+  const resolveGroup = (group: string): number => {
+    // 实际计费 = model_ratio × group_ratio × channel_ratio(relay/helper/price.go:130)。
+    // 概览价必须叠上该组渠道倍率,否则用户看到的卡片价 ≠ 实际扣费价。
+    // channel min/max 相等(单一价)时用 min;有价差时概览沿用"最优价"口径显示 min,
+    // 各渠道全价在模型详情页 channels 表逐行列出。
+    const chMinMap = model.group_channel_ratio_min || {}
+    const chMin =
+      typeof chMinMap[group] === 'number' && Number.isFinite(chMinMap[group])
+        ? chMinMap[group]
+        : 1
+    return getConfiguredGroupRatio(groupRatio, group) * chMin
+  }
+
   if (
     selectedGroup &&
     selectedGroup !== FILTER_ALL &&
     modelEnableGroups.includes(selectedGroup)
   ) {
-    return getConfiguredGroupRatio(groupRatio, selectedGroup)
+    return resolveGroup(selectedGroup)
   }
 
   if (modelEnableGroups.length === 0) {
@@ -81,12 +94,8 @@ export function getDisplayGroupRatio(
   let minRatio = Number.POSITIVE_INFINITY
 
   for (const group of modelEnableGroups) {
-    const ratio = groupRatio[group]
-    if (
-      typeof ratio === 'number' &&
-      Number.isFinite(ratio) &&
-      ratio < minRatio
-    ) {
+    const ratio = resolveGroup(group)
+    if (ratio < minRatio) {
       minRatio = ratio
     }
   }
