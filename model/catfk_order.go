@@ -3,6 +3,8 @@ package model
 import (
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
+
 	"gorm.io/gorm"
 )
 
@@ -45,6 +47,20 @@ func ListPendingCatfkOrders(limit int) ([]CatfkOrder, error) {
 	var orders []CatfkOrder
 	err := DB.Where("granted = ?", false).Order("id asc").Limit(limit).Find(&orders).Error
 	return orders, err
+}
+
+// GetUserCatfkOrders 分页返回某用户的 catfk 订单(用户端「我的订单」用)。按 id desc 最新在前。
+func GetUserCatfkOrders(userId int, pageInfo *common.PageInfo) (orders []CatfkOrder, total int64, err error) {
+	err = DB.Model(&CatfkOrder{}).Where("user_id = ?", userId).Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = DB.Where("user_id = ?", userId).
+		Order("id desc").
+		Limit(pageInfo.GetPageSize()).
+		Offset(pageInfo.GetStartIdx()).
+		Find(&orders).Error
+	return orders, total, err
 }
 
 // MarkCatfkOrderGranted 原子地把订单标记为已发货,返回是否成功抢到(防 sweeper 与

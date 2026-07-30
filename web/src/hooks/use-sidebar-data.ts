@@ -117,6 +117,11 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
+            title: t('My Orders'),
+            url: '/orders',
+            icon: PackagePlus,
+          },
+          {
             title: t('Profile'),
             url: '/profile',
             icon: User,
