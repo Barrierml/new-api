@@ -31,6 +31,7 @@ import {
   runReplenish,
   updateReplenishConfig,
 } from './api'
+import { getGoodsFullLabel } from './goods-meta'
 import type { ReplenishEvent, ReplenishOverview } from './types'
 
 export function AutoReplenish() {
@@ -262,7 +263,10 @@ function StockPanel({
               const low = r.available >= 0 && r.available < r.low_water
               return (
                 <tr key={r.goods_key} className='border-b last:border-0'>
-                  <td className='py-2 pr-4 font-mono'>{r.goods_key}</td>
+                  <td className='py-2 pr-4'>
+                    <div className='font-medium'>{getGoodsFullLabel(r.goods_key)}</div>
+                    <div className='font-mono text-xs text-muted-foreground'>{r.goods_key}</div>
+                  </td>
                   <td className='py-2 pr-4'>{r.kind === 'plan' ? t('Plan') : t('Quota')}</td>
                   <td className={cn('py-2 pr-4 font-medium', low && 'text-destructive')}>
                     {r.available < 0 ? '-' : r.available}
@@ -319,7 +323,10 @@ function EventsTable({ events, loading }: { events: ReplenishEvent[]; loading: b
               {events.map((e) => (
                 <tr key={e.id} className='border-b last:border-0'>
                   <td className='py-2 pr-4 text-muted-foreground'>{new Date(e.created_at * 1000).toLocaleString()}</td>
-                  <td className='py-2 pr-4 font-mono'>{e.goods_key}</td>
+                  <td className='py-2 pr-4'>
+                    <div className='font-medium'>{getGoodsFullLabel(e.goods_key)}</div>
+                    <div className='font-mono text-xs text-muted-foreground'>{e.goods_key}</div>
+                  </td>
                   <td className='py-2 pr-4'>
                     <span className='rounded bg-muted px-1.5 py-0.5 text-xs'>{e.trigger}</span>
                   </td>

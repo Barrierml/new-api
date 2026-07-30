@@ -90,3 +90,17 @@ func CheckoutStatus(c *gin.Context) {
 	status, _ := catfk.CheckAndGrant(tradeNo)
 	common.ApiSuccess(c, gin.H{"status": status, "kind": order.Kind})
 }
+
+// ListMyCatfkOrders 当前用户的 catfk 订单列表(用户端「我的订单」页面)。按创建时间倒序分页。
+func ListMyCatfkOrders(c *gin.Context) {
+	userId := c.GetInt("id")
+	pageInfo := common.GetPageQuery(c)
+	orders, total, err := model.GetUserCatfkOrders(userId, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(orders)
+	common.ApiSuccess(c, pageInfo)
+}
