@@ -24,6 +24,7 @@ import {
   ENDPOINT_TYPES,
 } from '../constants'
 import type { PricingModel } from '../types'
+import { getDisplayGroupRatio } from './model-helpers'
 
 // ----------------------------------------------------------------------------
 // Filter Utilities
@@ -99,10 +100,17 @@ export function filterByEndpointType(
 }
 
 /**
- * Get model price for sorting
+ * Get model price for sorting.
+ * 必须与卡片/列表的展示价同口径(model_ratio × group_ratio × channel_min),
+ * 否则按价排序和用户看到的卡片价格对不上(如 glm-4.7 卡片价 9.84 却排在
+ * 裸 model_ratio=2.5 的便宜区)。selectedGroup 与概览展示价一样
+ * 传入,保证"按价排序"就是"按用户实际看到的价排序"。
  */
-function getModelPrice(model: PricingModel): number {
-  return model.quota_type === 0 ? model.model_ratio : model.model_price || 0
+function getModelPrice(model: PricingModel, selectedGroup?: string): number {
+  const displayRatio = getDisplayGroupRatio(model, selectedGroup)
+  return model.quota_type === 0
+    ? model.model_ratio * displayRatio
+    : (model.model_price || 0) * displayRatio
 }
 
 /**
@@ -111,7 +119,8 @@ function getModelPrice(model: PricingModel): number {
 export function sortModels(
   models: PricingModel[],
   sortBy: string,
-  usageByModel?: Map<string, number>
+  usageByModel?: Map<string, number>,
+  selectedGroup?: string
 ): PricingModel[] {
   const sorted = [...models]
 
@@ -138,10 +147,14 @@ export function sortModels(
       )
       break
     case SORT_OPTIONS.PRICE_LOW:
-      sorted.sort((a, b) => getModelPrice(a) - getModelPrice(b))
+      sorted.sort(
+        (a, b) => getModelPrice(a, selectedGroup) - getModelPrice(b, selectedGroup)
+      )
       break
     case SORT_OPTIONS.PRICE_HIGH:
-      sorted.sort((a, b) => getModelPrice(b) - getModelPrice(a))
+      sorted.sort(
+        (a, b) => getModelPrice(b, selectedGroup) - getModelPrice(a, selectedGroup)
+      )
       break
   }
 
@@ -170,7 +183,7 @@ export function filterAndSortModels(
   result = filterByQuotaType(result, filters.quotaType)
   result = filterByEndpointType(result, filters.endpointType)
   result = filterByTag(result, filters.tag)
-  result = sortModels(result, filters.sortBy, usageByModel)
+  result = sortModels(result, filters.sortBy, usageByModel, filters.group)
 
   return result
 }
