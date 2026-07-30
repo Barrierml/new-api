@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Ban, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, Plus, RotateCcw, TimerReset, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -66,6 +66,7 @@ import {
   invalidateUserSubscription,
   deleteUserSubscription,
   resetUserSubscriptionsByPlan,
+  resetUserSubscriptionSubQuota,
 } from '../../api'
 import {
   getEndTimeHint,
@@ -164,6 +165,11 @@ export function UserSubscriptionsDialog(props: Props) {
     planId: number
     planTitle: string
   } | null>(null)
+  const [subQuotaResetAction, setSubQuotaResetAction] = useState<{
+    subId: number
+    planTitle: string
+  } | null>(null)
+  const [subQuotaResetting, setSubQuotaResetting] = useState(false)
   const [confirmAction, setConfirmAction] = useState<{
     type: 'invalidate' | 'delete'
     subId: number
@@ -278,6 +284,28 @@ export function UserSubscriptionsDialog(props: Props) {
     } finally {
       setResetting(false)
       setResetAction(null)
+    }
+  }
+
+  const handleSubQuotaResetConfirm = async () => {
+    if (!subQuotaResetAction) return
+    setSubQuotaResetting(true)
+    try {
+      const res = await resetUserSubscriptionSubQuota(
+        subQuotaResetAction.subId
+      )
+      if (res.success) {
+        toast.success(t('Sub-quota window reset'))
+        await loadData()
+        props.onSuccess?.()
+      } else {
+        toast.error(res.message || t('Operation failed'))
+      }
+    } catch {
+      toast.error(t('Operation failed'))
+    } finally {
+      setSubQuotaResetting(false)
+      setSubQuotaResetAction(null)
     }
   }
 
@@ -517,6 +545,25 @@ export function UserSubscriptionsDialog(props: Props) {
                           </DropdownMenuShortcut>
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          disabled={
+                            !isActive ||
+                            (record.sub_quota_usage || []).length === 0
+                          }
+                          onClick={() =>
+                            setSubQuotaResetAction({
+                              subId: sub.id,
+                              planTitle:
+                                planTitleMap.get(sub.plan_id) ||
+                                `#${sub.plan_id}`,
+                            })
+                          }
+                        >
+                          {t('Reset sub-quota window')}
+                          <DropdownMenuShortcut>
+                            <TimerReset size={16} />
+                          </DropdownMenuShortcut>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={!isActive}
                           onClick={() =>
                             setConfirmAction({
@@ -599,6 +646,21 @@ export function UserSubscriptionsDialog(props: Props) {
             />
           </label>
         </ConfirmDialog>
+      )}
+
+      {subQuotaResetAction && (
+        <ConfirmDialog
+          open
+          onOpenChange={(v) => !v && setSubQuotaResetAction(null)}
+          title={t('Reset sub-quota window')}
+          desc={t(
+            'Reset sub-quota windows (e.g. 5h limit) for this {{plan}} subscription? Main quota stays untouched.',
+            { plan: subQuotaResetAction.planTitle }
+          )}
+          confirmText={t('Reset sub-quota window')}
+          handleConfirm={handleSubQuotaResetConfirm}
+          isLoading={subQuotaResetting}
+        />
       )}
     </>
   )

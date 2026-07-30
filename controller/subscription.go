@@ -637,6 +637,23 @@ func AdminInvalidateUserSubscription(c *gin.Context) {
 	common.ApiSuccess(c, nil)
 }
 
+// AdminResetUserSubscriptionSubQuota 只复位子配额窗口(如 5h 限额),主配额不动。
+func AdminResetUserSubscriptionSubQuota(c *gin.Context) {
+	subId, _ := strconv.Atoi(c.Param("id"))
+	if subId <= 0 {
+		common.ApiErrorMsg(c, "无效的订阅ID")
+		return
+	}
+	if err := model.AdminResetUserSubscriptionSubQuota(subId); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAudit(c, "subscription.sub_quota_reset", map[string]interface{}{
+		"user_subscription_id": subId,
+	})
+	common.ApiSuccess(c, nil)
+}
+
 // AdminDeleteUserSubscription hard-deletes a user subscription.
 func AdminDeleteUserSubscription(c *gin.Context) {
 	subId, _ := strconv.Atoi(c.Param("id"))

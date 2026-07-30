@@ -128,6 +128,16 @@ export async function resetUserSubscriptionsByPlan(
   return res.data
 }
 
+// 只复位子配额窗口(如 5h 限额),主配额(amount_used/next_reset_time)不动
+export async function resetUserSubscriptionSubQuota(
+  subId: number
+): Promise<ApiResponse> {
+  const res = await api.post(
+    `/api/subscription/admin/user_subscriptions/${subId}/reset_sub_quota`
+  )
+  return res.data
+}
+
 export async function resetPlanSubscriptions(
   planId: number,
   data: ResetPlanSubscriptionsRequest

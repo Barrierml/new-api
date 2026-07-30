@@ -1385,6 +1385,31 @@ func AdminResetUserSubscriptionsByPlan(userId int, planId int, advanceResetTime 
 	return result, nil
 }
 
+// AdminResetUserSubscriptionSubQuota 只复位子配额窗口(如 5h 限额),不动主配额
+// (AmountUsed/NextResetTime 保持原样)。语义同 resetUserSubscriptionTx 的子配额段:
+// 把 SubQuotaResetAt 设为 now,之前的 consume 日志不再计入当前窗口;窗口自然滚动后
+// windowStart 超过 SubQuotaResetAt,复位自动失效,日志一条不删。
+func AdminResetUserSubscriptionSubQuota(userSubscriptionId int) error {
+	if userSubscriptionId <= 0 {
+		return errors.New("invalid userSubscriptionId")
+	}
+	now := GetDBTimestamp()
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var sub UserSubscription
+		if err := lockForUpdate(tx).Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
+			return err
+		}
+		if sub.Status != "active" || sub.EndTime <= now {
+			return errors.New("订阅不是有效状态")
+		}
+		if len(strings.TrimSpace(sub.SubQuotaLimits)) == 0 {
+			return errors.New("该订阅没有子配额限制")
+		}
+		sub.SubQuotaResetAt = now
+		return tx.Save(&sub).Error
+	})
+}
+
 func AdminResetPlanSubscriptions(planId int, advanceResetTime bool) (*SubscriptionResetResult, error) {
 	if planId <= 0 {
 		return nil, errors.New("invalid planId")
