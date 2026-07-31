@@ -15,6 +15,11 @@ import (
 const (
 	SubQuotaAnchorSubscriptionStart = "subscription_start"
 	SubQuotaAnchorCalendar          = "calendar"
+	// SubQuotaAnchorFirstUse 滑动窗口:从当前窗口内第一次 consume 开始算 N 小时。
+	// 与 subscription_start / calendar 的固定对齐不同,这个 anchor 的 window_start
+	// 动态等于该用户在当前 5h 块内的最早一条 consume log 时间 — 用户"什么时候开始用,
+	// 什么时候开始计 5h"。
+	SubQuotaAnchorFirstUse = "first_use"
 )
 
 // SubQuotaLimitPeriodUnit values
@@ -138,9 +143,11 @@ func ValidateAndNormalizeSubQuotaLimits(limits []SubscriptionSubQuotaLimit) ([]S
 			if limit.Anchor == "" {
 				limit.Anchor = SubQuotaAnchorSubscriptionStart
 			}
-			if limit.Anchor != SubQuotaAnchorSubscriptionStart && limit.Anchor != SubQuotaAnchorCalendar {
-				return nil, fmt.Errorf("小时子限制 anchor 只能是 %s 或 %s",
-					SubQuotaAnchorSubscriptionStart, SubQuotaAnchorCalendar)
+			if limit.Anchor != SubQuotaAnchorSubscriptionStart &&
+				limit.Anchor != SubQuotaAnchorCalendar &&
+				limit.Anchor != SubQuotaAnchorFirstUse {
+				return nil, fmt.Errorf("小时子限制 anchor 只能是 %s / %s / %s",
+					SubQuotaAnchorSubscriptionStart, SubQuotaAnchorCalendar, SubQuotaAnchorFirstUse)
 			}
 		case SubQuotaPeriodWeek:
 			if limit.PeriodValue < 1 {
@@ -323,6 +330,41 @@ func sumConsumeQuotaInWindow(userId int, windowStart, windowEnd, resetAt int64) 
 	return usedQuota, nil
 }
 
+// firstUseSlidingWindow 计算 anchor=first_use 的滑动窗口 [start, end)。
+//
+// 语义:用户"什么时候开始用,什么时候开始计 N 小时"。窗口起点 = 覆盖 nowUnix
+// 的那个 N 小时块内、该用户的最早一条 consume log 时间。
+//
+// 算法:候选起点下界 = max(nowUnix - N*h, resetAt)。查 [下界, nowUnix] 内最早
+// 一条 consume 时间 t0。若 t0 存在且 t0 + N*h > nowUnix → 当前窗口 [t0, t0+N*h);
+// 若该区间内无任何 consume(用户最近 N 小时没用)→ 返回 [nowUnix, nowUnix+N*h)
+// 作为"即将开始"的空窗口(used=0,reset_time=now+N*h,但首次 consume 后起点会
+// 立即滑动到那条 consume 的时间)。
+func firstUseSlidingWindow(userId int, hours float64, resetAt, nowUnix int64) (int64, int64, error) {
+	blockSeconds := int64(math.Ceil(hours * 3600))
+	if blockSeconds <= 0 {
+		blockSeconds = 1
+	}
+	lowerBound := nowUnix - blockSeconds
+	if resetAt > lowerBound {
+		lowerBound = resetAt
+	}
+	var t0 int64
+	err := LOG_DB.Model(&Log{}).
+		Select("COALESCE(MIN(created_at), 0)").
+		Where("user_id = ? AND type = ? AND created_at >= ? AND created_at < ?",
+			userId, LogTypeConsume, lowerBound, nowUnix+1).
+		Scan(&t0).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	if t0 <= 0 {
+		// 最近 N 小时无 consume:返回以 now 为起点的空窗口,首次使用时起点滑动过去
+		return nowUnix, nowUnix + blockSeconds, nil
+	}
+	return t0, t0 + blockSeconds, nil
+}
+
 // checkSubscriptionSubLimits verifies the candidate pre-consume amount does
 // not exceed any sub-limit window. Returns nil on success, error on violation.
 func checkSubscriptionSubLimits(userId int, sub *UserSubscription, amount int64, now int64) error {
@@ -347,7 +389,13 @@ func checkSubscriptionSubLimits(userId int, sub *UserSubscription, amount int64,
 		if limitQuota <= 0 {
 			continue
 		}
-		windowStart, windowEnd, err := calcSubLimitWindow(sub, limit, now)
+		var windowStart, windowEnd int64
+		var err error
+		if limit.PeriodUnit == SubQuotaPeriodHour && limit.Anchor == SubQuotaAnchorFirstUse {
+			windowStart, windowEnd, err = firstUseSlidingWindow(userId, limit.PeriodValue, sub.SubQuotaResetAt, now)
+		} else {
+			windowStart, windowEnd, err = calcSubLimitWindow(sub, limit, now)
+		}
 		if err != nil {
 			return err
 		}
@@ -423,7 +471,13 @@ func BuildSubQuotaUsage(userId int, sub *UserSubscription, nowUnix int64) ([]Sub
 		if limitQuota <= 0 {
 			continue
 		}
-		windowStart, windowEnd, err := calcSubLimitWindow(sub, limit, nowUnix)
+		var windowStart, windowEnd int64
+		var err error
+		if limit.PeriodUnit == SubQuotaPeriodHour && limit.Anchor == SubQuotaAnchorFirstUse {
+			windowStart, windowEnd, err = firstUseSlidingWindow(userId, limit.PeriodValue, sub.SubQuotaResetAt, nowUnix)
+		} else {
+			windowStart, windowEnd, err = calcSubLimitWindow(sub, limit, nowUnix)
+		}
 		if err != nil {
 			return nil, err
 		}

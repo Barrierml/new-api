@@ -743,6 +743,7 @@
     "Calculated ratio: {{ratio}}": "计算倍率：{{ratio}}",
     "Calculating...": "计算中...",
     "Calendar aligned": "日历对齐",
+    "First use in window": "窗口内首次使用",
     "Call 1: the token group is premium": "调用 ①：令牌分组是 premium",
     "Call 2: the token group is default": "调用 ②：令牌分组是 default",
     "Call 3: the token has no group": "调用 ③：令牌没设置分组",

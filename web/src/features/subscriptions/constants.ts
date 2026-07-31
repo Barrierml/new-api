@@ -101,6 +101,7 @@ export const SUB_QUOTA_PERIOD_UNITS = [
 export const SUB_QUOTA_ANCHORS = [
   { value: 'subscription_start', labelKey: 'Subscription start time' },
   { value: 'calendar', labelKey: 'Calendar aligned' },
+  { value: 'first_use', labelKey: 'First use in window' },
 ] as const
 
 export const MAX_SUB_QUOTA_LIMITS = 2
