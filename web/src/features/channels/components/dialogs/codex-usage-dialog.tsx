@@ -143,6 +143,12 @@ type CodexUsagePayload = {
   spend_control?: {
     reached?: boolean
   }
+  // grok 渠道(/grok/usage)附加:Sub2API 本地 7 天统计
+  grok_local_usage_7d?: {
+    requests?: number
+    tokens?: number
+    cost?: number
+  }
 }
 
 export type CodexUsageDialogData = {
@@ -526,16 +532,21 @@ function RateLimitWindow(props: RateLimitWindowProps) {
 function RateLimitWindowGrid(props: {
   fiveHourWindow?: CodexRateLimitWindow | null
   weeklyWindow?: CodexRateLimitWindow | null
+  fiveHourTitle?: string
+  weeklyTitle?: string
 }) {
   const { t } = useTranslation()
 
   return (
     <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
       <RateLimitWindow
-        title={t('5-Hour Window')}
+        title={props.fiveHourTitle ?? t('5-Hour Window')}
         window={props.fiveHourWindow}
       />
-      <RateLimitWindow title={t('Weekly Window')} window={props.weeklyWindow} />
+      <RateLimitWindow
+        title={props.weeklyTitle ?? t('Weekly Window')}
+        window={props.weeklyWindow}
+      />
     </div>
   )
 }
@@ -1241,6 +1252,8 @@ export function CodexUsageDialog({
           <RateLimitWindowGrid
             fiveHourWindow={fiveHourWindow}
             weeklyWindow={weeklyWindow}
+            fiveHourTitle={payload?.grok_local_usage_7d ? t('Weekly Quota') : undefined}
+            weeklyTitle={payload?.grok_local_usage_7d ? t('Token Quota') : undefined}
           />
         </div>
 

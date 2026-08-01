@@ -55,7 +55,7 @@ import {
 import { formatTimestampToDate } from '@/lib/format'
 import { truncateText } from '@/lib/utils'
 
-import { getCodexUsage } from '../api'
+import { getCodexUsage, getGrokUsage } from '../api'
 import { CHANNEL_STATUS_CONFIG, MODEL_FETCHABLE_TYPES } from '../constants'
 import {
   formatRelativeTime,
@@ -387,15 +387,23 @@ function BalanceCell({ channel }: { channel: Channel }) {
   // Regular channel row: show used and remaining with click to update
   const variant = getBalanceVariant(balance)
 
+  // grok 渠道:type=1(OpenAI 兼容)且 base_url 指向 Sub2API → 余额徽标点开
+  // 也走 codex usage 弹窗,后端 /grok/usage 把 Sub2API 配额映射成同一结构
+  const isGrokChannel =
+    channel.type === 1 && (channel.base_url || '').includes('sub2api')
+  const isUsageDialogChannel = channel.type === 57 || isGrokChannel
+
   const handleClickUpdate = async () => {
     if (isUpdating) {
       return
     }
 
     setIsUpdating(true)
-    if (channel.type === 57) {
+    if (channel.type === 57 || isGrokChannel) {
       try {
-        const res = await getCodexUsage(channel.id)
+        const res = isGrokChannel
+          ? await getGrokUsage(channel.id)
+          : await getCodexUsage(channel.id)
         if (!res.success) {
           throw new Error(res.message || t('Failed to fetch usage'))
         }
@@ -417,7 +425,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
   let remainingBadgeLabel = sensitiveVisible ? remainingDisplay : SENSITIVE_MASK
   if (sensitiveVisible && isUpdating) {
     remainingBadgeLabel = t('Updating...')
-  } else if (sensitiveVisible && channel.type === 57) {
+  } else if (sensitiveVisible && isUsageDialogChannel) {
     remainingBadgeLabel = t('Account Info')
   }
   let remainingTooltipLabel = remainingLabel
@@ -425,9 +433,11 @@ function BalanceCell({ channel }: { channel: Channel }) {
     remainingTooltipLabel = maskedRemainingLabel
   } else if (channel.type === 57) {
     remainingTooltipLabel = t('Click to view Codex usage')
+  } else if (isGrokChannel) {
+    remainingTooltipLabel = t('Click to view upstream usage')
   }
   let remainingBadgeVariant: StatusBadgeProps['variant'] = variant
-  if (channel.type === 57) {
+  if (isUsageDialogChannel) {
     remainingBadgeVariant = 'info'
   } else if (isUpdating) {
     remainingBadgeVariant = 'neutral'
@@ -469,7 +479,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
           />
           <TooltipContent>
             <p>{remainingTooltipLabel}</p>
-            {channel.type !== 57 && <p>{t('Click to update balance')}</p>}
+            {isUsageDialogChannel ? null : <p>{t('Click to update balance')}</p>}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -488,7 +498,9 @@ function BalanceCell({ channel }: { channel: Channel }) {
           }
           setIsUpdating(true)
           try {
-            const res = await getCodexUsage(channel.id)
+            const res = isGrokChannel
+              ? await getGrokUsage(channel.id)
+              : await getCodexUsage(channel.id)
             if (!res.success) {
               throw new Error(res.message || t('Failed to fetch usage'))
             }

@@ -332,6 +332,17 @@ export async function getCodexUsage(
   return res.data
 }
 
+// grok 渠道(type=1 + base_url 指 Sub2API)上游配额,后端映射成 codex usage 结构
+export async function getGrokUsage(
+  channelId: number
+): Promise<CodexUsageResponse> {
+  const res = await api.get(
+    `/api/channel/${channelId}/grok/usage`,
+    channelActionConfig({ disableDuplicate: true })
+  )
+  return res.data
+}
+
 export async function getCodexResetCredits(
   channelId: number
 ): Promise<CodexResetCreditsResponse> {
