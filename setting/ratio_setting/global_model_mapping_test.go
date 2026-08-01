@@ -119,3 +119,23 @@ func TestUpdateGlobalModelMappingGroupsInvalidJSON(t *testing.T) {
 	require.Equal(t, "y", ResolveGlobalMappedModel("x"))
 	require.Len(t, GetGlobalModelMappingGroups(), 1)
 }
+
+func TestValidateGlobalModelMappingGroupsJSONStringNoStateChange(t *testing.T) {
+	resetGlobalModelMappingForTest(t)
+	require.NoError(t, UpdateGlobalModelMappingGroupsByJSONString(`[
+		{"id":"g1","name":"keep","enabled":true,"mappings":{"x":"y"}}
+	]`))
+	// 预检失败不落态:冲突 JSON 校验报错,内存 active map 不变
+	err := ValidateGlobalModelMappingGroupsJSONString(`[
+		{"id":"g1","name":"keep","enabled":true,"mappings":{"x":"y"}},
+		{"id":"g2","name":"conflict","enabled":true,"mappings":{"x":"z"}}
+	]`)
+	require.ErrorContains(t, err, "conflict")
+	require.Equal(t, "y", ResolveGlobalMappedModel("x"))
+	require.Len(t, GetGlobalModelMappingGroups(), 1)
+	// 合法 JSON 预检通过但也不落态
+	require.NoError(t, ValidateGlobalModelMappingGroupsJSONString(`[
+		{"id":"g9","name":"other","enabled":true,"mappings":{"a":"b"}}
+	]`))
+	require.Len(t, GetGlobalModelMappingGroups(), 1)
+}

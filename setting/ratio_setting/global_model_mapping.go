@@ -95,6 +95,19 @@ func validateGlobalModelMappingGroups(groups []GlobalModelMappingGroup) error {
 	return nil
 }
 
+// ValidateGlobalModelMappingGroupsJSONString 只校验不落态(写库前预检用)。
+func ValidateGlobalModelMappingGroupsJSONString(jsonStr string) error {
+	jsonStr = strings.TrimSpace(jsonStr)
+	if jsonStr == "" {
+		jsonStr = "[]"
+	}
+	var groups []GlobalModelMappingGroup
+	if err := json.Unmarshal([]byte(jsonStr), &groups); err != nil {
+		return fmt.Errorf("invalid global model mapping groups json: %w", err)
+	}
+	return validateGlobalModelMappingGroups(groups)
+}
+
 // UpdateGlobalModelMappingGroupsByJSONString 全量替换组列表(option 更新回调用)。
 func UpdateGlobalModelMappingGroupsByJSONString(jsonStr string) error {
 	jsonStr = strings.TrimSpace(jsonStr)

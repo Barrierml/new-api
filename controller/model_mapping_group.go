@@ -29,12 +29,17 @@ func newGlobalModelMappingGroupId() string {
 }
 
 // persistGlobalModelMappingGroups 校验 + 写 options 表 + 更内存态。
-// model.UpdateOption 内部先写 DB,成功才 dispatch updateOptionMap(其
-// case GlobalModelMappingGroups 调 validate + 更内存),DB 失败整体不落。
+// 先 validate(失败 400,DB/内存都不动)再 model.UpdateOption(其内部先写 DB,
+// 成功才 dispatch updateOptionMap 更内存)。校验前置是关键:UpdateOption 本身
+// 先落库再 dispatch,若只靠 dispatch 里的校验,失败时 DB 已脏(内存/DB 分裂)。
 func persistGlobalModelMappingGroups(c *gin.Context, groups []ratio_setting.GlobalModelMappingGroup) bool {
 	raw, err := common.Marshal(groups)
 	if err != nil {
 		common.ApiError(c, err)
+		return false
+	}
+	if err := ratio_setting.ValidateGlobalModelMappingGroupsJSONString(string(raw)); err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return false
 	}
 	if err := model.UpdateOption(globalModelMappingGroupsOptionKey, string(raw)); err != nil {
