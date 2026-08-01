@@ -22,7 +22,11 @@ import { z } from 'zod'
 import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
 
 import { DEFAULT_GROUP } from '../constants'
-import { type ApiKeyFormData, type ApiKey } from '../types'
+import {
+  apiKeyBillingPreferenceSchema,
+  type ApiKeyFormData,
+  type ApiKey,
+} from '../types'
 
 // ============================================================================
 // Form Schema
@@ -39,6 +43,7 @@ export function getApiKeyFormSchema(t: TFunction) {
       allow_ips: z.string().optional(),
       group: z.string().optional(),
       cross_group_retry: z.boolean().optional(),
+      billing_preference: apiKeyBillingPreferenceSchema.nullable(),
       tokenCount: z.number().min(1).optional(),
     })
     .superRefine((data, ctx) => {
@@ -74,6 +79,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   allow_ips: '',
   group: DEFAULT_GROUP,
   cross_group_retry: true,
+  billing_preference: null,
   tokenCount: 1,
 }
 
@@ -111,6 +117,7 @@ export function transformFormDataToPayload(
     allow_ips: data.allow_ips || '',
     group: data.group || '',
     cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
+    billing_preference: data.billing_preference ?? '',
   }
 }
 
@@ -136,6 +143,7 @@ export function transformApiKeyToFormDefaults(
     allow_ips: apiKey.allow_ips || '',
     group: apiKey.group || DEFAULT_GROUP,
     cross_group_retry: !!apiKey.cross_group_retry,
+    billing_preference: apiKey.billing_preference || null,
     tokenCount: 1,
   }
 }

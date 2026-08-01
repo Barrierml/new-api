@@ -338,13 +338,25 @@ func (s *BillingSession) syncRelayInfo() {
 // NewBillingSession 工厂 — 根据计费偏好创建会话并处理回退
 // ---------------------------------------------------------------------------
 
-// NewBillingSession 根据用户计费偏好创建 BillingSession，处理 subscription_first / wallet_first 的回退。
+// NewBillingSession 根据令牌覆盖或用户默认计费偏好创建 BillingSession，处理 subscription_first / wallet_first 的回退。
 func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int) (*BillingSession, *types.NewAPIError) {
 	if relayInfo == nil {
 		return nil, types.NewError(fmt.Errorf("relayInfo is nil"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	pref := common.NormalizeBillingPreference(relayInfo.UserSetting.BillingPreference)
+	pref := strings.TrimSpace(relayInfo.TokenBillingPreference)
+	prefSource := "token"
+	if pref == "" || !common.IsValidTokenBillingPreference(pref) {
+		pref = strings.TrimSpace(relayInfo.UserSetting.BillingPreference)
+		prefSource = "user"
+	}
+	normalizedPref := common.NormalizeBillingPreference(pref)
+	if normalizedPref != pref {
+		prefSource = "default"
+	}
+	pref = normalizedPref
+	relayInfo.EffectiveBillingPreference = pref
+	relayInfo.BillingPreferenceSource = prefSource
 
 	// 钱包路径需要先检查用户额度
 	tryWallet := func() (*BillingSession, *types.NewAPIError) {
