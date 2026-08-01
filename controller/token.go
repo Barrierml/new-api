@@ -20,6 +20,8 @@ func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	}
 	maskedToken := *token
 	maskedToken.Key = token.GetMaskedKey()
+	maxChannelRatio := token.GetMaxChannelRatio()
+	maskedToken.MaxChannelRatio = &maxChannelRatio
 	return &maskedToken
 }
 
@@ -171,6 +173,13 @@ func AddToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if token.MaxChannelRatio == nil {
+		maxChannelRatio := model.DefaultTokenMaxChannelRatio
+		token.MaxChannelRatio = &maxChannelRatio
+	} else if !model.IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -221,6 +230,7 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+		MaxChannelRatio:    token.MaxChannelRatio,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -254,6 +264,10 @@ func UpdateToken(c *gin.Context) {
 	err := c.ShouldBindJSON(&token)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+	if statusOnly == "" && token.MaxChannelRatio != nil && !model.IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
 	if len(token.Name) > 50 {
@@ -299,6 +313,9 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		if token.MaxChannelRatio != nil {
+			cleanToken.MaxChannelRatio = token.MaxChannelRatio
+		}
 	}
 	err = cleanToken.Update()
 	if err != nil {

@@ -444,6 +444,39 @@ export function ApiKeysMutateDrawer({
                 icon={<WalletCards className='size-4' />}
                 iconTone='success'
               />
+              <FormField
+                control={form.control}
+                name='max_channel_ratio'
+                render={({ field, fieldState }) => (
+                  <FormItem data-invalid={!!fieldState.error}>
+                    <FormLabel>{t('Maximum channel ratio')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type='number'
+                        min='0.01'
+                        step='0.1'
+                        value={Number.isFinite(field.value) ? field.value : ''}
+                        aria-invalid={!!fieldState.error}
+                        onChange={(event) => {
+                          field.onChange(
+                            event.target.value === ''
+                              ? undefined
+                              : event.target.valueAsNumber
+                          )
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Channels with a higher ratio will not be used, including during retries.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {!unlimitedQuota && (
                 <FormField
                   control={form.control}

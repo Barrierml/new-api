@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"strings"
 	"sync"
@@ -349,7 +350,7 @@ func (channel *Channel) GetAutoBan() bool {
 }
 
 func (channel *Channel) GetRatio() float64 {
-	if channel.Ratio == nil || *channel.Ratio == 0 {
+	if channel.Ratio == nil || *channel.Ratio <= 0 || math.IsNaN(*channel.Ratio) || math.IsInf(*channel.Ratio, 0) {
 		return 1.0
 	}
 	return *channel.Ratio

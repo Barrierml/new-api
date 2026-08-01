@@ -3,12 +3,12 @@ package model
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/dto"
 
 	"github.com/samber/lo"
 	"gorm.io/gorm"
@@ -31,6 +31,15 @@ type AbilityWithChannel struct {
 	ChannelName   string  `json:"channel_name"`
 	ChannelRatio  float64 `json:"channel_ratio"`
 	ChannelWeight uint    `json:"channel_weight"`
+}
+
+type ChannelRatioLimitError struct {
+	MaxChannelRatio   float64
+	MinAvailableRatio float64
+}
+
+func (e *ChannelRatioLimitError) Error() string {
+	return fmt.Sprintf("no channel within ratio limit %.4g; minimum available ratio is %.4g", e.MaxChannelRatio, e.MinAvailableRatio)
 }
 
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
@@ -63,68 +72,6 @@ func GetAllEnableAbilities() []Ability {
 	return abilities
 }
 
-func getPriority(group string, model string, retry int, excluded map[int]struct{}) (int, error) {
-
-	var priorities []int
-	query := DB.Model(&Ability{}).
-		Select("DISTINCT(priority)").
-		Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
-	if excludedIDs := channelIDsFromSet(excluded); len(excludedIDs) > 0 {
-		query = query.Where("channel_id NOT IN ?", excludedIDs)
-	}
-	err := query.Order("priority DESC").Pluck("priority", &priorities).Error
-
-	if err != nil {
-		// 处理错误
-		return 0, err
-	}
-
-	if len(priorities) == 0 {
-		// 如果没有查询到优先级，则返回错误
-		return 0, errors.New("数据库一致性被破坏")
-	}
-
-	// 确定要使用的优先级
-	var priorityToUse int
-	if retry >= len(priorities) {
-		// 如果重试次数大于优先级数，则使用最小的优先级
-		priorityToUse = priorities[len(priorities)-1]
-	} else {
-		priorityToUse = priorities[retry]
-	}
-	return priorityToUse, nil
-}
-
-func getChannelQuery(group string, model string, retry int) (*gorm.DB, error) {
-	return getChannelQueryWithExclusions(group, model, retry, nil)
-}
-
-func getChannelQueryWithExclusions(group string, model string, retry int, excluded map[int]struct{}) (*gorm.DB, error) {
-	excludedIDs := channelIDsFromSet(excluded)
-	baseQuery := DB.Model(&Ability{}).Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
-	if len(excludedIDs) > 0 {
-		baseQuery = baseQuery.Where("channel_id NOT IN ?", excludedIDs)
-	}
-	maxPrioritySubQuery := baseQuery.Select("MAX(priority)")
-	channelQuery := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ? and priority = (?)", group, model, true, maxPrioritySubQuery)
-	if len(excludedIDs) > 0 {
-		channelQuery = channelQuery.Where("channel_id NOT IN ?", excludedIDs)
-	}
-	if retry != 0 {
-		priority, err := getPriority(group, model, retry, excluded)
-		if err != nil {
-			return nil, err
-		} else {
-			channelQuery = DB.Where(commonGroupCol+" = ? and model = ? and enabled = ? and priority = ?", group, model, true, priority)
-			if len(excludedIDs) > 0 {
-				channelQuery = channelQuery.Where("channel_id NOT IN ?", excludedIDs)
-			}
-		}
-	}
-
-	return channelQuery, nil
-}
-
 func channelIDsFromSet(excluded map[int]struct{}) []int {
 	if len(excluded) == 0 {
 		return nil
@@ -141,91 +88,96 @@ func GetChannel(group string, model string, retry int, requestPath string) (*Cha
 }
 
 func GetChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
-	var abilities []Ability
-
-	var err error = nil
-	channelQuery, err := getChannelQueryWithExclusions(group, model, retry, excluded)
-	if err != nil {
-		return nil, err
-	}
-	if common.UsingMainDatabase(common.DatabaseTypeSQLite) || common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
-		err = channelQuery.Order("weight DESC").Find(&abilities).Error
-	} else {
-		err = channelQuery.Order("weight DESC").Find(&abilities).Error
-	}
-	if err != nil {
-		return nil, err
-	}
-	abilities = filterAbilitiesByRequestPathAndModel(abilities, requestPath, model)
-	channel := Channel{}
-	if len(abilities) > 0 {
-		// Randomly choose one
-		weightSum := uint(0)
-		for _, ability_ := range abilities {
-			weightSum += ability_.Weight + 10
-		}
-		// Randomly choose one
-		weight := common.GetRandomInt(int(weightSum))
-		for _, ability_ := range abilities {
-			weight -= int(ability_.Weight) + 10
-			//log.Printf("weight: %d, ability weight: %d", weight, *ability_.Weight)
-			if weight <= 0 {
-				channel.Id = ability_.ChannelId
-				break
-			}
-		}
-	} else {
-		return nil, nil
-	}
-	err = DB.First(&channel, "id = ?", channel.Id).Error
-	return &channel, err
+	return GetChannelWithRatioLimit(group, model, retry, requestPath, excluded, 0)
 }
 
-// filterAbilitiesByRequestPathAndModel restricts candidates by request path and
-// model for the DB (non-memory-cache) selection path. Only Advanced Custom
-// (type 58) channels are path-checked: kept only when one of their routes matches
-// requestPath and model; all other channel types always pass. When requestPath is
-// empty, filtering is skipped.
-func filterAbilitiesByRequestPathAndModel(abilities []Ability, requestPath string, model string) []Ability {
-	if requestPath == "" || len(abilities) == 0 {
-		return abilities
+func GetChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
+	var abilities []Ability
+	query := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
+	if excludedIDs := channelIDsFromSet(excluded); len(excludedIDs) > 0 {
+		query = query.Where("channel_id NOT IN ?", excludedIDs)
+	}
+	if err := query.Find(&abilities).Error; err != nil {
+		return nil, err
+	}
+	if len(abilities) == 0 {
+		return nil, nil
 	}
 
-	channelIds := make([]int, 0, len(abilities))
-	seen := make(map[int]struct{}, len(abilities))
+	channelIDs := make([]int, 0, len(abilities))
 	for _, ability := range abilities {
-		if _, ok := seen[ability.ChannelId]; ok {
-			continue
-		}
-		seen[ability.ChannelId] = struct{}{}
-		channelIds = append(channelIds, ability.ChannelId)
+		channelIDs = append(channelIDs, ability.ChannelId)
 	}
-
 	var channels []*Channel
-	if err := DB.Where("id IN ?", channelIds).Find(&channels).Error; err != nil {
-		// On error, fall back to unfiltered candidates to avoid blocking selection
-		return abilities
+	if err := DB.Where("id IN ?", channelIDs).Find(&channels).Error; err != nil {
+		return nil, err
 	}
-
-	advancedConfigs := make(map[int]*dto.AdvancedCustomConfig)
+	channelsByID := make(map[int]*Channel, len(channels))
 	for _, channel := range channels {
-		if channel.Type == constant.ChannelTypeAdvancedCustom {
-			advancedConfigs[channel.Id] = channel.GetOtherSettings().AdvancedCustom
-		}
+		channelsByID[channel.Id] = channel
 	}
 
-	filtered := make([]Ability, 0, len(abilities))
+	eligible := make([]Ability, 0, len(abilities))
+	minAvailableRatio := 0.0
 	for _, ability := range abilities {
-		config, isAdvancedCustom := advancedConfigs[ability.ChannelId]
-		if !isAdvancedCustom {
-			filtered = append(filtered, ability)
+		channel, ok := channelsByID[ability.ChannelId]
+		if !ok {
+			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", ability.ChannelId)
+		}
+		if requestPath != "" && channel.Type == constant.ChannelTypeAdvancedCustom {
+			config := channel.GetOtherSettings().AdvancedCustom
+			if config == nil || !config.SupportsPathForModel(requestPath, model) {
+				continue
+			}
+		}
+		ratio := channel.GetRatio()
+		if maxChannelRatio > 0 && ratio > maxChannelRatio {
+			if minAvailableRatio == 0 || ratio < minAvailableRatio {
+				minAvailableRatio = ratio
+			}
 			continue
 		}
-		if config != nil && config.SupportsPathForModel(requestPath, model) {
-			filtered = append(filtered, ability)
+		eligible = append(eligible, ability)
+	}
+	if len(eligible) == 0 {
+		if minAvailableRatio > 0 {
+			return nil, &ChannelRatioLimitError{MaxChannelRatio: maxChannelRatio, MinAvailableRatio: minAvailableRatio}
+		}
+		return nil, nil
+	}
+
+	priorities := make(map[int64]struct{})
+	for _, ability := range eligible {
+		priorities[channelsByID[ability.ChannelId].GetPriority()] = struct{}{}
+	}
+	sortedPriorities := make([]int64, 0, len(priorities))
+	for priority := range priorities {
+		sortedPriorities = append(sortedPriorities, priority)
+	}
+	sort.Slice(sortedPriorities, func(i, j int) bool {
+		return sortedPriorities[i] > sortedPriorities[j]
+	})
+	if retry >= len(sortedPriorities) {
+		retry = len(sortedPriorities) - 1
+	}
+	targetPriority := sortedPriorities[retry]
+
+	targetAbilities := make([]Ability, 0, len(eligible))
+	weightSum := uint(0)
+	for _, ability := range eligible {
+		if channelsByID[ability.ChannelId].GetPriority() == targetPriority {
+			targetAbilities = append(targetAbilities, ability)
+			weightSum += ability.Weight + 10
 		}
 	}
-	return filtered
+	weight := common.GetRandomInt(int(weightSum))
+	for _, ability := range targetAbilities {
+		weight -= int(ability.Weight) + 10
+		if weight <= 0 {
+			return channelsByID[ability.ChannelId], nil
+		}
+	}
+	return nil, errors.New("channel not found")
 }
 
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {

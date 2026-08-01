@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -82,6 +83,28 @@ func createMiddlewarePATUser(t *testing.T, username, token string) *model.User {
 	}
 	require.NoError(t, model.DB.Create(user).Error)
 	return user
+}
+
+func TestSetupContextForTokenIncludesEffectiveMaxChannelRatio(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	maxChannelRatio := 1.5
+	token := &model.Token{
+		Id:              93,
+		UserId:          94,
+		Key:             "ratio-context-key",
+		MaxChannelRatio: &maxChannelRatio,
+	}
+
+	require.NoError(t, SetupContextForToken(ctx, token))
+	ratio, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyTokenMaxChannelRatio)
+	require.True(t, ok)
+	assert.Equal(t, 1.5, ratio)
+
+	defaultCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	require.NoError(t, SetupContextForToken(defaultCtx, &model.Token{}))
+	defaultRatio, ok := common.GetContextKeyType[float64](defaultCtx, constant.ContextKeyTokenMaxChannelRatio)
+	require.True(t, ok)
+	assert.Equal(t, model.DefaultTokenMaxChannelRatio, defaultRatio)
 }
 
 func TestUserAuthAllowsOpaqueDottedPAT(t *testing.T) {

@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -10,6 +11,8 @@ import (
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
 )
+
+const DefaultTokenMaxChannelRatio = 10.0
 
 type Token struct {
 	Id                 int            `json:"id"`
@@ -28,7 +31,22 @@ type Token struct {
 	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
 	Group              string         `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	MaxChannelRatio    *float64       `json:"max_channel_ratio"`
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
+}
+
+func (token *Token) GetMaxChannelRatio() float64 {
+	if token == nil || token.MaxChannelRatio == nil {
+		return DefaultTokenMaxChannelRatio
+	}
+	if !IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+		return DefaultTokenMaxChannelRatio
+	}
+	return *token.MaxChannelRatio
+}
+
+func IsValidTokenMaxChannelRatio(ratio float64) bool {
+	return ratio > 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
 }
 
 func (token *Token) Clean() {
@@ -279,7 +297,7 @@ func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 		// Don't return error - fall through to DB
 	}
 	fromDB = true
-	err = DB.Where(commonKeyCol+" = ?", key).First(&token).Error
+	err = DB.Where(&Token{Key: key}).First(&token).Error
 	return token, err
 }
 
@@ -302,7 +320,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "max_channel_ratio").Updates(token).Error
 	return err
 }
 

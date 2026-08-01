@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
@@ -180,13 +181,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}()
 
 	retryParam := &service.RetryParam{
-		Ctx:         c,
-		TokenGroup:  relayInfo.TokenGroup,
+		Ctx:        c,
+		TokenGroup: relayInfo.TokenGroup,
 		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
-		ModelName:   ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
-		RequestPath: c.Request.URL.Path,
-		Retry:       common.GetPointer(0),
+		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
+		RequestPath:     c.Request.URL.Path,
+		MaxChannelRatio: common.GetContextKeyTypeOrDefault[float64](c, constant.ContextKeyTokenMaxChannelRatio, 0),
+		Retry:           common.GetPointer(0),
 	}
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
@@ -317,9 +319,13 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	if lockedChannelID := service.GetLockedRetryChannelID(c); lockedChannelID > 0 {
 		channel, err := model.CacheGetChannel(lockedChannelID)
 		if err == nil {
-			newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
-			if newAPIError == nil {
-				return channel, nil
+			if retryParam.MaxChannelRatio > 0 && channel.GetRatio() > retryParam.MaxChannelRatio {
+				service.ClearLockedRetryChannel(c)
+			} else {
+				newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
+				if newAPIError == nil {
+					return channel, nil
+				}
 			}
 		}
 		service.ClearLockedRetryChannel(c)
@@ -331,6 +337,14 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	info.PriceData.GroupRatioInfo = helper.HandleGroupRatio(c, info)
 
 	if err != nil {
+		var ratioLimitErr *model.ChannelRatioLimitError
+		if errors.As(err, &ratioLimitErr) {
+			message := i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
+				"Model":    info.OriginModelName,
+				"MaxRatio": ratioLimitErr.MaxChannelRatio,
+			})
+			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelRatioLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+		}
 		return nil, types.NewError(fmt.Errorf("获取分组 %s 下模型 %s 的可用渠道失败（retry）: %s", selectGroup, info.OriginModelName, err.Error()), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
 	if channel == nil {
@@ -531,13 +545,14 @@ func RelayTask(c *gin.Context) {
 	}()
 
 	retryParam := &service.RetryParam{
-		Ctx:         c,
-		TokenGroup:  relayInfo.TokenGroup,
+		Ctx:        c,
+		TokenGroup: relayInfo.TokenGroup,
 		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
-		ModelName:   ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
-		RequestPath: c.Request.URL.Path,
-		Retry:       common.GetPointer(0),
+		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
+		RequestPath:     c.Request.URL.Path,
+		MaxChannelRatio: common.GetContextKeyTypeOrDefault[float64](c, constant.ContextKeyTokenMaxChannelRatio, 0),
+		Retry:           common.GetPointer(0),
 	}
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
@@ -545,6 +560,14 @@ func RelayTask(c *gin.Context) {
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
 			channel = lockedCh
+			if retryParam.MaxChannelRatio > 0 && channel.GetRatio() > retryParam.MaxChannelRatio {
+				message := i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
+					"Model":    relayInfo.OriginModelName,
+					"MaxRatio": retryParam.MaxChannelRatio,
+				})
+				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelRatioLimitExceeded), http.StatusServiceUnavailable)
+				break
+			}
 			if retryParam.GetRetry() > 0 {
 				if setupErr := middleware.SetupContextForSelectedChannel(c, channel, relayInfo.OriginModelName); setupErr != nil {
 					taskErr = service.TaskErrorWrapperLocal(setupErr.Err, "setup_locked_channel_failed", http.StatusInternalServerError)
@@ -556,6 +579,10 @@ func RelayTask(c *gin.Context) {
 			channel, channelErr = getChannel(c, relayInfo, retryParam)
 			if channelErr != nil {
 				logger.LogError(c, channelErr.Error())
+				if channelErr.GetErrorCode() == types.ErrorCodeChannelRatioLimitExceeded {
+					taskErr = service.TaskErrorWrapperLocal(channelErr.Err, string(channelErr.GetErrorCode()), channelErr.StatusCode)
+					break
+				}
 				taskErr = service.TaskErrorWrapperLocal(channelErr.Err, "get_channel_failed", http.StatusInternalServerError)
 				break
 			}
