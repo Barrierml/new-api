@@ -88,9 +88,7 @@ func runGrokUsageSyncOnce() {
 	adminEmail := common.GetEnvOrDefaultString("SUB2API_ADMIN_EMAIL", "")
 	adminPassword := common.GetEnvOrDefaultString("SUB2API_ADMIN_PASSWORD", "")
 	if adminEmail == "" || adminPassword == "" {
-		if common.DebugEnabled {
-			logger.LogDebug(ctx, "grok usage sync skipped: SUB2API_ADMIN_EMAIL/PASSWORD not set")
-		}
+		logger.LogWarn(ctx, "grok usage sync skipped: SUB2API_ADMIN_EMAIL/PASSWORD not set")
 		return
 	}
 
@@ -120,11 +118,11 @@ func runGrokUsageSyncOnce() {
 		return
 	}
 
-	if common.DebugEnabled {
-		logger.LogDebug(ctx, "grok usage synced: used_tokens=%d, request_remaining=%d, period=%s, usage_pct=%.1f%%",
-			usedTokens, usage.Data.GrokRequestQuota.Remaining,
-			usage.Data.GrokBilling.PeriodType, usage.Data.GrokBilling.UsagePercent)
-	}
+	logger.LogInfo(ctx, fmt.Sprintf("grok usage synced: channel=%d used_tokens=%d (limit=%d remaining=%d), request_remaining=%d/%d, period=%s, usage_pct=%.1f%%",
+		grokUsageTakoChannelID, usedTokens,
+		usage.Data.GrokTokenQuota.Limit, usage.Data.GrokTokenQuota.Remaining,
+		usage.Data.GrokRequestQuota.Remaining, usage.Data.GrokRequestQuota.Limit,
+		usage.Data.GrokBilling.PeriodType, usage.Data.GrokBilling.UsagePercent))
 }
 
 func sub2apiLogin(baseURL, email, password string) (string, error) {
