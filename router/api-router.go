@@ -278,8 +278,8 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			modelMappingGroupRoute.GET("/", controller.GetGlobalModelMappingGroups)
 			modelMappingGroupRoute.POST("/", controller.AddGlobalModelMappingGroup)
-			modelMappingGroupRoute.PUT("/:id", controller.UpdateGlobalModelMappingGroup)
 			modelMappingGroupRoute.PUT("/:id/status", controller.UpdateGlobalModelMappingGroupStatus)
+			modelMappingGroupRoute.PUT("/:id", controller.UpdateGlobalModelMappingGroup)
 			modelMappingGroupRoute.DELETE("/:id", controller.DeleteGlobalModelMappingGroup)
 		}
 		catfkReplenishRoute := apiRouter.Group("/catfk-replenish")
