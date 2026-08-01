@@ -127,6 +127,9 @@ func main() {
 	catfk.StartSweeper()
 	catfk.StartReplenisher()
 
+	// Grok upstream usage sync: pull Sub2API grok quota into channel.used_quota
+	service.StartGrokUsageSyncTask()
+
 	// Report this process as a system instance so the System Info page can show
 	// all currently alive nodes in multi-instance deployments.
 	service.StartSystemInstanceReporter()
