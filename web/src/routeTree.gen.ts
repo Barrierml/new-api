@@ -45,6 +45,7 @@ import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedOperationsIndexRouteImport } from './routes/_authenticated/operations/index'
+import { Route as AuthenticatedOperationsModelMappingsRouteImport } from './routes/_authenticated/operations/model-mappings'
 import { Route as AuthenticatedOrdersIndexRouteImport } from './routes/_authenticated/orders/index'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
@@ -259,6 +260,12 @@ const AuthenticatedOperationsIndexRoute =
     path: '/operations/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOperationsModelMappingsRoute =
+  AuthenticatedOperationsModelMappingsRouteImport.update({
+    id: '/operations/model-mappings',
+    path: '/operations/model-mappings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOrdersIndexRoute =
   AuthenticatedOrdersIndexRouteImport.update({
     id: '/orders/',
@@ -450,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/operations/model-mappings': typeof AuthenticatedOperationsModelMappingsRoute
   '/redemption-codes/auto-replenish': typeof AuthenticatedRedemptionCodesAutoReplenishRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
@@ -512,6 +520,7 @@ export interface FileRoutesByTo {
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/operations/model-mappings': typeof AuthenticatedOperationsModelMappingsRoute
   '/redemption-codes/auto-replenish': typeof AuthenticatedRedemptionCodesAutoReplenishRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
@@ -578,6 +587,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/_authenticated/operations/model-mappings': typeof AuthenticatedOperationsModelMappingsRoute
   '/_authenticated/redemption-codes/auto-replenish': typeof AuthenticatedRedemptionCodesAutoReplenishRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
@@ -643,6 +653,7 @@ export interface FileRouteTypes {
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/operations/model-mappings'
     | '/redemption-codes/auto-replenish'
     | '/usage-logs/$section'
     | '/channels/'
@@ -705,6 +716,7 @@ export interface FileRouteTypes {
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/operations/model-mappings'
     | '/redemption-codes/auto-replenish'
     | '/usage-logs/$section'
     | '/channels'
@@ -770,6 +782,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/$section'
     | '/_authenticated/errors/$error'
     | '/_authenticated/models/$section'
+    | '/_authenticated/operations/model-mappings'
     | '/_authenticated/redemption-codes/auto-replenish'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/channels/'
@@ -1079,6 +1092,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOperationsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/operations/model-mappings': {
+      id: '/_authenticated/operations/model-mappings'
+      path: '/operations/model-mappings'
+      fullPath: '/operations/model-mappings'
+      preLoaderRoute: typeof AuthenticatedOperationsModelMappingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/orders/': {
       id: '/_authenticated/orders/'
       path: '/orders'
@@ -1361,6 +1381,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
+  AuthenticatedOperationsModelMappingsRoute: typeof AuthenticatedOperationsModelMappingsRoute
   AuthenticatedRedemptionCodesAutoReplenishRoute: typeof AuthenticatedRedemptionCodesAutoReplenishRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
@@ -1387,6 +1408,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
+  AuthenticatedOperationsModelMappingsRoute:
+    AuthenticatedOperationsModelMappingsRoute,
   AuthenticatedRedemptionCodesAutoReplenishRoute:
     AuthenticatedRedemptionCodesAutoReplenishRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,

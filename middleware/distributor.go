@@ -101,7 +101,11 @@ func Distribute() func(c *gin.Context) {
 					}
 				}
 
-				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, modelRequest.Model, usingGroup); found {
+				// 全局临时模型映射(路由层):选渠道/affinity 用映射后模型名,
+				// modelRequest.Model 保持原始值(original_model=原始模型,计费/日志不变)。
+				selectionModel := ratio_setting.ResolveGlobalMappedModel(modelRequest.Model)
+
+				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, selectionModel, usingGroup); found {
 					affinityUsable := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
@@ -110,7 +114,7 @@ func Distribute() func(c *gin.Context) {
 							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
-								if model.IsChannelEnabledForGroupModel(g, modelRequest.Model, preferred.Id) {
+								if model.IsChannelEnabledForGroupModel(g, selectionModel, preferred.Id) {
 									selectGroup = g
 									common.SetContextKey(c, constant.ContextKeyAutoGroup, g)
 									channel = preferred
@@ -119,7 +123,7 @@ func Distribute() func(c *gin.Context) {
 									break
 								}
 							}
-						} else if model.IsChannelEnabledForGroupModel(usingGroup, modelRequest.Model, preferred.Id) {
+						} else if model.IsChannelEnabledForGroupModel(usingGroup, selectionModel, preferred.Id) {
 							channel = preferred
 							selectGroup = usingGroup
 							affinityUsable = true
@@ -134,7 +138,7 @@ func Distribute() func(c *gin.Context) {
 				if channel == nil {
 					channel, selectGroup, err = service.CacheGetRandomSatisfiedChannel(&service.RetryParam{
 						Ctx:         c,
-						ModelName:   modelRequest.Model,
+						ModelName:   selectionModel,
 						TokenGroup:  usingGroup,
 						RequestPath: c.Request.URL.Path,
 						Retry:       common.GetPointer(0),

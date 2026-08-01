@@ -23,6 +23,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/bytedance/gopkg/util/gopool"
@@ -181,7 +182,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	retryParam := &service.RetryParam{
 		Ctx:         c,
 		TokenGroup:  relayInfo.TokenGroup,
-		ModelName:   relayInfo.OriginModelName,
+		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
+		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
+		ModelName:   ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
 		RequestPath: c.Request.URL.Path,
 		Retry:       common.GetPointer(0),
 	}
@@ -530,7 +533,9 @@ func RelayTask(c *gin.Context) {
 	retryParam := &service.RetryParam{
 		Ctx:         c,
 		TokenGroup:  relayInfo.TokenGroup,
-		ModelName:   relayInfo.OriginModelName,
+		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
+		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
+		ModelName:   ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
 		RequestPath: c.Request.URL.Path,
 		Retry:       common.GetPointer(0),
 	}

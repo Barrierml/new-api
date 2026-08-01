@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  ArrowLeftRight,
   BookOpen,
   Box,
   CreditCard,
@@ -151,6 +152,12 @@ export function useSidebarData(): SidebarData {
             title: t('Operations'),
             url: '/operations',
             icon: Gauge,
+          },
+          {
+            title: t('Model Mappings'),
+            url: '/operations/model-mappings',
+            icon: ArrowLeftRight,
+            requiredRole: ROLE.ADMIN,
           },
           {
             title: t('Redemption Codes'),

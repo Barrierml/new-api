@@ -273,6 +273,15 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
 		}
+		modelMappingGroupRoute := apiRouter.Group("/model_mapping_groups")
+		modelMappingGroupRoute.Use(middleware.AdminAuth())
+		{
+			modelMappingGroupRoute.GET("/", controller.GetGlobalModelMappingGroups)
+			modelMappingGroupRoute.POST("/", controller.AddGlobalModelMappingGroup)
+			modelMappingGroupRoute.PUT("/:id", controller.UpdateGlobalModelMappingGroup)
+			modelMappingGroupRoute.PUT("/:id/status", controller.UpdateGlobalModelMappingGroupStatus)
+			modelMappingGroupRoute.DELETE("/:id", controller.DeleteGlobalModelMappingGroup)
+		}
 		catfkReplenishRoute := apiRouter.Group("/catfk-replenish")
 		catfkReplenishRoute.Use(middleware.AdminAuth())
 		{

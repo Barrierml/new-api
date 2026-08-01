@@ -27,13 +27,20 @@ func ModelMappedHelper(c *gin.Context, info *common.RelayInfo, request dto.Reque
 
 	// map model name
 	modelMapping := c.GetString("model_mapping")
+	modelMap := make(map[string]string)
 	if modelMapping != "" && modelMapping != "{}" {
-		modelMap := make(map[string]string)
-		err := json.Unmarshal([]byte(modelMapping), &modelMap)
-		if err != nil {
+		if err := json.Unmarshal([]byte(modelMapping), &modelMap); err != nil {
 			return fmt.Errorf("unmarshal_model_mapping_failed")
 		}
-
+	}
+	// 全局临时模型映射优先于渠道级 model_mapping(同 key 覆盖)。
+	// 二者共用一条链:全局 A→B + 渠道 B→C = 打 C。
+	if globalMap := ratio_setting.GetActiveGlobalModelMapping(); len(globalMap) > 0 {
+		for k, v := range globalMap {
+			modelMap[k] = v
+		}
+	}
+	if len(modelMap) > 0 {
 		// 支持链式模型重定向，最终使用链尾的模型
 		currentModel := mappingModelName
 		visitedModels := map[string]bool{
