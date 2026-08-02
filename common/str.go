@@ -127,6 +127,17 @@ func NormalizeBillingPreference(pref string) string {
 	}
 }
 
+// IsValidTokenBillingPreference reports whether pref is a valid token-level
+// billing preference. Empty string is allowed and means "follow user setting".
+func IsValidTokenBillingPreference(pref string) bool {
+	switch strings.TrimSpace(pref) {
+	case "", "subscription_first", "wallet_first", "subscription_only", "wallet_only":
+		return true
+	default:
+		return false
+	}
+}
+
 // MaskEmail masks a user email to prevent PII leakage in logs
 // Returns "***masked***" if email is empty, otherwise shows only the domain part
 func MaskEmail(email string) string {

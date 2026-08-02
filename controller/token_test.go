@@ -16,6 +16,8 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -32,10 +34,11 @@ type tokenPageResponse struct {
 }
 
 type tokenResponseItem struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Key    string `json:"key"`
-	Status int    `json:"status"`
+	ID                int    `json:"id"`
+	Name              string `json:"name"`
+	Key               string `json:"key"`
+	Status            int    `json:"status"`
+	BillingPreference string `json:"billing_preference"`
 }
 
 type tokenKeyResponse struct {
@@ -503,6 +506,99 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), token.Key) {
 		t.Fatalf("update response leaked raw token key: %s", recorder.Body.String())
 	}
+}
+
+func TestAddTokenPersistsBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "wallet-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "  wallet_only  ",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	assert.Equal(t, "wallet_only", token.BillingPreference)
+}
+
+func TestAddTokenRejectsInvalidBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "invalid-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "charge_everything",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	assert.False(t, response.Success)
+	var count int64
+	require.NoError(t, db.Model(&model.Token{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestUpdateTokenPersistsBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "editable-billing-key", "billing1234token5678")
+	body := map[string]any{
+		"id":                   token.Id,
+		"name":                 token.Name,
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "subscription_only",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
+	UpdateToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	assert.Equal(t, "subscription_only", updated.BillingPreference)
+}
+
+func TestUpdateTokenStatusPreservesBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "status-billing-key", "status1234token5678")
+	require.NoError(t, db.Model(token).Update("billing_preference", "wallet_only").Error)
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/?status_only=true", map[string]any{
+		"id":     token.Id,
+		"status": common.TokenStatusDisabled,
+	}, 1)
+	UpdateToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	assert.Equal(t, "wallet_only", updated.BillingPreference)
+	assert.Equal(t, common.TokenStatusDisabled, updated.Status)
 }
 
 func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {

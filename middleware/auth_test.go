@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -103,6 +104,19 @@ func TestUserAuthAllowsOpaqueDottedPAT(t *testing.T) {
 	}
 	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &body))
 	assert.Equal(t, user.Id, body.ID)
+}
+
+func TestSetupContextForTokenIncludesBillingPreference(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	token := &model.Token{
+		Id:                91,
+		UserId:            92,
+		Key:               "billing-context-key",
+		BillingPreference: "subscription_only",
+	}
+
+	require.NoError(t, SetupContextForToken(ctx, token))
+	assert.Equal(t, "subscription_only", common.GetContextKeyString(ctx, constant.ContextKeyTokenBillingPreference))
 }
 
 func TestUserAuthNeverFallsBackForRecognizedInvalidInternalJWT(t *testing.T) {

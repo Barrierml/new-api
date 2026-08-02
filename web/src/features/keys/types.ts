@@ -22,6 +22,18 @@ import { z } from 'zod'
 // API Key Schema & Types
 // ============================================================================
 
+export const apiKeyBillingPreferenceSchema = z.enum([
+  '',
+  'subscription_first',
+  'wallet_first',
+  'subscription_only',
+  'wallet_only',
+])
+
+export type ApiKeyBillingPreference = z.infer<
+  typeof apiKeyBillingPreferenceSchema
+>
+
 export const apiKeySchema = z.object({
   id: z.number(),
   name: z.string(),
@@ -45,6 +57,7 @@ export const apiKeySchema = z.object({
   model_limits_enabled: z.boolean(),
   model_limits: z.string().nullish().default(''),
   allow_ips: z.string().nullish().default(''),
+  billing_preference: apiKeyBillingPreferenceSchema.optional().default(''),
 })
 
 export type ApiKey = z.infer<typeof apiKeySchema>
@@ -92,6 +105,7 @@ export interface ApiKeyFormData {
   allow_ips: string
   group: string
   cross_group_retry: boolean
+  billing_preference: ApiKeyBillingPreference
 }
 
 // ============================================================================

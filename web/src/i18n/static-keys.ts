@@ -306,6 +306,8 @@ export const STATIC_I18N_KEYS = [
   'Wallet Only',
   'Subscription First',
   'Subscription Only',
+  'Billing preference',
+  'Follow account setting',
   'No Active',
   'No Reset',
   'Remaining',

@@ -87,16 +87,20 @@ type TokenCountMeta struct {
 }
 
 type RelayInfo struct {
-	TokenId           int
-	TokenKey          string
-	TokenGroup        string
-	UserId            int
-	UsingGroup        string // 使用的分组，当auto跨分组重试时，会变动
-	UserGroup         string // 用户所在分组
-	TokenUnlimited    bool
-	StartTime         time.Time
-	FirstResponseTime time.Time
-	isFirstResponse   bool
+	TokenId    int
+	TokenKey   string
+	TokenGroup string
+	// TokenBillingPreference 令牌级扣费策略，空字符串表示跟随用户设置
+	TokenBillingPreference     string
+	EffectiveBillingPreference string
+	BillingPreferenceSource    string
+	UserId                     int
+	UsingGroup                 string // 使用的分组，当auto跨分组重试时，会变动
+	UserGroup                  string // 用户所在分组
+	TokenUnlimited             bool
+	StartTime                  time.Time
+	FirstResponseTime          time.Time
+	isFirstResponse            bool
 	//SendLastReasoningResponse bool
 	IsStream               bool
 	IsGeminiBatchEmbedding bool
@@ -489,6 +493,8 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 		TokenKey:       common.GetContextKeyString(c, constant.ContextKeyTokenKey),
 		TokenUnlimited: common.GetContextKeyBool(c, constant.ContextKeyTokenUnlimited),
 		TokenGroup:     tokenGroup,
+
+		TokenBillingPreference: common.GetContextKeyString(c, constant.ContextKeyTokenBillingPreference),
 
 		isFirstResponse: true,
 		RelayMode:       relayconstant.Path2RelayMode(c.Request.URL.Path),

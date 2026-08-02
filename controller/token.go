@@ -171,6 +171,11 @@ func AddToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	token.BillingPreference = strings.TrimSpace(token.BillingPreference)
+	if !common.IsValidTokenBillingPreference(token.BillingPreference) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -221,6 +226,7 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+		BillingPreference:  token.BillingPreference,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -255,6 +261,13 @@ func UpdateToken(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if statusOnly == "" {
+		token.BillingPreference = strings.TrimSpace(token.BillingPreference)
+		if !common.IsValidTokenBillingPreference(token.BillingPreference) {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
 	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
@@ -299,6 +312,7 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		cleanToken.BillingPreference = token.BillingPreference
 	}
 	err = cleanToken.Update()
 	if err != nil {

@@ -52,6 +52,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -68,7 +76,11 @@ import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 import { createApiKey, updateApiKey, getApiKey } from '../api'
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
+import {
+  API_KEY_BILLING_PREFERENCES,
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES,
+} from '../constants'
 import {
   getApiKeyFormSchema,
   type ApiKeyFormValues,
@@ -249,6 +261,10 @@ export function ApiKeysMutateDrawer({
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
   const selectedGroup = form.watch('group')
   const unlimitedQuota = form.watch('unlimited_quota')
+  const billingPreferenceItems = API_KEY_BILLING_PREFERENCES.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }))
 
   return (
     <Sheet
@@ -443,6 +459,39 @@ export function ApiKeysMutateDrawer({
                 description={t('Set quota amount and limits')}
                 icon={<WalletCards className='size-4' />}
                 iconTone='success'
+              />
+              <FormField
+                control={form.control}
+                name='billing_preference'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Billing preference')}</FormLabel>
+                    <Select
+                      items={billingPreferenceItems}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          {API_KEY_BILLING_PREFERENCES.map((option) => (
+                            <SelectItem
+                              key={option.labelKey}
+                              value={option.value}
+                            >
+                              {t(option.labelKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               {!unlimitedQuota && (
                 <FormField
