@@ -1166,9 +1166,40 @@ func attachLiveUsage(summary *SubscriptionSummary, sub *UserSubscription, now in
 	if summary == nil || sub == nil {
 		return
 	}
+	// 读路径惰性重置:周/月配额到期但用户还没发请求时,光看不刷会让
+	// 前端一直显示旧用量。这里在展示前把超期的订阅先推进重置,保证
+	// 用户"看到的"就是"将要被执行的"。失败时静默回退到旧值,不阻塞读取。
+	refreshSubscriptionResetForDisplay(sub, now)
 	summary.MainQuotaUsage = BuildMainQuotaUsage(sub)
 	if usages, err := BuildSubQuotaUsage(sub.UserId, sub, now); err == nil && len(usages) > 0 {
 		summary.SubQuotaUsage = usages
+	}
+}
+
+// refreshSubscriptionResetForDisplay applies the same lazy reset as the
+// consume path when a subscription's next_reset_time has passed. It mutates
+// the in-memory sub and persists the new amount_used/reset timestamps, so
+// both the display and subsequent enforcement agree. Any failure (plan
+// deleted, DB error) leaves the sub untouched — showing stale numbers is
+// strictly better than breaking the read path.
+func refreshSubscriptionResetForDisplay(sub *UserSubscription, now int64) {
+	if sub == nil || sub.Id <= 0 {
+		return
+	}
+	if sub.NextResetTime <= 0 || sub.NextResetTime > now {
+		return
+	}
+	plan, err := GetSubscriptionPlanById(sub.PlanId)
+	if err != nil || plan == nil {
+		return
+	}
+	if NormalizeResetPeriod(plan.QuotaResetPeriod) == SubscriptionResetNever {
+		return
+	}
+	if err := DB.Transaction(func(tx *gorm.DB) error {
+		return maybeResetUserSubscriptionWithPlanTx(tx, sub, plan, now)
+	}); err != nil {
+		common.SysLog(fmt.Sprintf("display-time subscription reset failed for sub %d: %v", sub.Id, err))
 	}
 }
 

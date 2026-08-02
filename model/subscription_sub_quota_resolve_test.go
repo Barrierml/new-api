@@ -125,3 +125,89 @@ func TestCheckSubscriptionSubLimits_UsesLivePlanLimits(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubQuotaExceeded), "unexpected error: %v", err)
 }
+
+// 读路径惰性重置:next_reset_time 已过的订阅,展示前自动推进重置。
+func TestRefreshSubscriptionResetForDisplay_ResetsOverdue(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9310, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9310).
+		Update("quota_reset_period", SubscriptionResetWeekly).Error)
+	InvalidateSubscriptionPlanCache(9310)
+
+	now := GetDBTimestamp()
+	sub := &UserSubscription{
+		Id:            9311,
+		UserId:        9312,
+		PlanId:        9310,
+		AmountTotal:   1000,
+		AmountUsed:    700,
+		StartTime:     now - 14*24*3600,
+		EndTime:       now + 14*24*3600,
+		Status:        "active",
+		LastResetTime: now - 8*24*3600,
+		NextResetTime: now - 1*24*3600, // 昨天就该重置
+	}
+	require.NoError(t, DB.Create(sub).Error)
+
+	// 读路径触发
+	refreshSubscriptionResetForDisplay(sub, now)
+
+	assert.Equal(t, int64(0), sub.AmountUsed, "in-memory sub should be reset")
+	assert.Greater(t, sub.NextResetTime, now, "next reset should be pushed forward")
+
+	// 落库确认
+	var stored UserSubscription
+	require.NoError(t, DB.Where("id = ?", 9311).First(&stored).Error)
+	assert.Equal(t, int64(0), stored.AmountUsed)
+	assert.Greater(t, stored.NextResetTime, now)
+}
+
+// 未到期的订阅不受影响。
+func TestRefreshSubscriptionResetForDisplay_NotDue(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9313, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9313).
+		Update("quota_reset_period", SubscriptionResetWeekly).Error)
+	InvalidateSubscriptionPlanCache(9313)
+
+	now := GetDBTimestamp()
+	sub := &UserSubscription{
+		Id:            9314,
+		UserId:        9315,
+		PlanId:        9313,
+		AmountTotal:   1000,
+		AmountUsed:    700,
+		StartTime:     now - 2*24*3600,
+		EndTime:       now + 26*24*3600,
+		Status:        "active",
+		LastResetTime: now - 2*24*3600,
+		NextResetTime: now + 5*24*3600, // 5 天后才到期
+	}
+	require.NoError(t, DB.Create(sub).Error)
+
+	refreshSubscriptionResetForDisplay(sub, now)
+
+	assert.Equal(t, int64(700), sub.AmountUsed, "not-due sub must stay untouched")
+}
+
+// 计划已删除的订阅不报错,展示层静默回退。
+func TestRefreshSubscriptionResetForDisplay_MissingPlan(t *testing.T) {
+	truncateTables(t)
+	now := GetDBTimestamp()
+	sub := &UserSubscription{
+		Id:            9316,
+		UserId:        9317,
+		PlanId:        9998, // 不存在
+		AmountTotal:   1000,
+		AmountUsed:    700,
+		StartTime:     now - 14*24*3600,
+		EndTime:       now + 14*24*3600,
+		Status:        "active",
+		LastResetTime: now - 8*24*3600,
+		NextResetTime: now - 1*24*3600,
+	}
+	require.NoError(t, DB.Create(sub).Error)
+
+	refreshSubscriptionResetForDisplay(sub, now)
+	assert.Equal(t, int64(700), sub.AmountUsed, "missing plan should leave sub untouched")
+}
