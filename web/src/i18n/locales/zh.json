@@ -3992,6 +3992,7 @@
     "Reserved for viewing complete channel keys after secure verification.": "预留用于在安全验证后查看完整渠道密钥。",
     "Reset": "重置",
     "Reset {{count}} active subscriptions": "已重置 {{count}} 个有效订阅",
+    "Reset on first use": "首次使用后开始计算",
     "Reset 2FA": "重置 2FA",
     "Reset 2FA for {{username}}? The user must set up 2FA again to continue using it.": "要重置 {{username}} 的 2FA 吗？该用户必须重新设置 2FA 后才能继续使用。",
     "Reset active {{plan}} subscriptions for this user?": "要重置该用户的有效 {{plan}} 订阅吗？",

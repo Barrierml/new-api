@@ -587,6 +587,11 @@ export function SubscriptionPlansCard({
                         {new Date(nextResetTime * 1000).toLocaleString()}
                       </div>
                     )}
+                    {isActive && nextResetTime === 0 && (
+                      <div className='text-muted-foreground mt-1'>
+                        {t('Reset on first use')}
+                      </div>
+                    )}
                     <div className='text-muted-foreground mt-1'>
                       {t('Weekly Quota')}:{' '}
                       {totalAmount > 0 ? (

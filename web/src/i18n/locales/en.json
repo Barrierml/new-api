@@ -3992,6 +3992,7 @@
     "Reserved for viewing complete channel keys after secure verification.": "Reserved for viewing complete channel keys after secure verification.",
     "Reset": "Reset",
     "Reset {{count}} active subscriptions": "Reset {{count}} active subscriptions",
+    "Reset on first use": "Reset on first use",
     "Reset 2FA": "Reset 2FA",
     "Reset 2FA for {{username}}? The user must set up 2FA again to continue using it.": "Reset 2FA for {{username}}? The user must set up 2FA again to continue using it.",
     "Reset active {{plan}} subscriptions for this user?": "Reset active {{plan}} subscriptions for this user?",
