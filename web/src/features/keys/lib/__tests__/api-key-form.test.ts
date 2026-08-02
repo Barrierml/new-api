@@ -19,11 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import type { ApiKey } from '../../types'
-import {
-  API_KEY_FORM_DEFAULT_VALUES,
 import type { TFunction } from 'i18next'
 
+import type { ApiKey } from '../../types'
+import { apiKeySchema } from '../../types'
+import {
+  API_KEY_FORM_DEFAULT_VALUES,
   getApiKeyFormSchema,
   transformApiKeyToFormDefaults,
   transformFormDataToPayload,
@@ -32,7 +33,6 @@ import type { TFunction } from 'i18next'
 const apiKey: ApiKey = {
   id: 1,
   name: 'billing-key',
-  name: 'ratio-key',
   key: 'sk-masked',
   status: 1,
   remain_quota: 0,
@@ -47,6 +47,7 @@ const apiKey: ApiKey = {
   model_limits: '',
   allow_ips: '',
   billing_preference: '',
+  max_channel_ratio: 0,
 }
 
 describe('API key billing preference form mapping', () => {
@@ -57,30 +58,44 @@ describe('API key billing preference form mapping', () => {
     })
     assert.equal(payload.billing_preference, '')
   })
+
   test('preserves an explicit key preference through form conversion', () => {
     const formValues = transformApiKeyToFormDefaults({
       ...apiKey,
       billing_preference: 'wallet_only',
+    })
     const payload = transformFormDataToPayload(formValues)
     assert.equal(formValues.billing_preference, 'wallet_only')
     assert.equal(payload.billing_preference, 'wallet_only')
-  max_channel_ratio: 0,
+  })
+})
+
 describe('API key channel ratio form mapping', () => {
   test('defaults to 0 (unlimited) as the maximum channel ratio', () => {
     const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
     assert.equal(payload.max_channel_ratio, 0)
+  })
+
   test('preserves a custom maximum channel ratio through form conversion', () => {
+    const formValues = transformApiKeyToFormDefaults({
+      ...apiKey,
       max_channel_ratio: 1.5,
+    })
+    const payload = transformFormDataToPayload(formValues)
     assert.equal(formValues.max_channel_ratio, 1.5)
     assert.equal(payload.max_channel_ratio, 1.5)
+  })
+
   test('rejects an empty or negative maximum channel ratio', () => {
     const t = ((key: string) => key) as TFunction
     const schema = getApiKeyFormSchema(t)
+
     for (const maxChannelRatio of [undefined, -1]) {
       const result = schema.safeParse({
         ...API_KEY_FORM_DEFAULT_VALUES,
         max_channel_ratio: maxChannelRatio,
       })
+
       assert.equal(result.success, false)
       if (!result.success) {
         assert.equal(
@@ -101,5 +116,29 @@ describe('API key channel ratio form mapping', () => {
       max_channel_ratio: 0,
     })
     assert.equal(result.success, true)
+  })
+})
+
+describe('apiKeySchema legacy row tolerance', () => {
+  test('accepts rows where the new fields are NULL (pre-PR2/PR3 keys)', () => {
+    const parsed = apiKeySchema.parse({
+      ...apiKey,
+      billing_preference: null,
+      max_channel_ratio: null,
+    })
+    assert.equal(parsed.billing_preference, '')
+    assert.equal(parsed.max_channel_ratio, 0)
+  })
+
+  test('accepts rows where the new fields are missing entirely', () => {
+    const { billing_preference: _bp, max_channel_ratio: _mcr, ...rest } = apiKey
+    const parsed = apiKeySchema.parse(rest)
+    assert.equal(parsed.billing_preference, '')
+    assert.equal(parsed.max_channel_ratio, 0)
+  })
+
+  test('accepts 0 (unlimited) as a stored maximum channel ratio', () => {
+    const parsed = apiKeySchema.parse({ ...apiKey, max_channel_ratio: 0 })
+    assert.equal(parsed.max_channel_ratio, 0)
   })
 })
