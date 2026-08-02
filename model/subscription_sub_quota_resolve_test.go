@@ -15,7 +15,7 @@ func seedPlanWithSubQuota(t *testing.T, id int, subQuotaLimits string) {
 	plan := &SubscriptionPlan{
 		Id:             id,
 		Title:          fmt.Sprintf("plan-%d", id),
-		PriceAmount:    10,
+		PriceAmount:    0,
 		DurationUnit:   SubscriptionDurationMonth,
 		DurationValue:  1,
 		TotalAmount:    1000,
@@ -210,4 +210,115 @@ func TestRefreshSubscriptionResetForDisplay_MissingPlan(t *testing.T) {
 
 	refreshSubscriptionResetForDisplay(sub, now)
 	assert.Equal(t, int64(700), sub.AmountUsed, "missing plan should leave sub untouched")
+}
+
+// ---------- weekly 滑动锚定 ----------
+
+// 购买时:weekly 订阅 next_reset_time 必须为 0(未锚定),等首次使用再落窗。
+func TestWeeklySlidingAnchor_PurchaseLeavesUnanchored(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9320, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9320).
+		Updates(map[string]any{"quota_reset_period": SubscriptionResetWeekly, "total_amount": 1000}).Error)
+	InvalidateSubscriptionPlanCache(9320)
+
+	user := &User{Id: 9321, Username: "u9321", Password: "x", Group: "default", Quota: 0}
+	require.NoError(t, DB.Create(user).Error)
+
+	require.NoError(t, PurchaseSubscriptionWithBalance(9321, 9320))
+
+	var sub UserSubscription
+	require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", 9321, 9320).First(&sub).Error)
+	assert.Equal(t, int64(0), sub.NextResetTime, "weekly 购买后应保持未锚定")
+	assert.Equal(t, int64(0), sub.LastResetTime)
+}
+
+// 首次 PreConsume 时:锚定 7 天窗口,amount_used 从 0 起算。
+func TestWeeklySlidingAnchor_FirstConsumeAnchorsWindow(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9322, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9322).
+		Updates(map[string]any{"quota_reset_period": SubscriptionResetWeekly, "total_amount": 100000}).Error)
+	InvalidateSubscriptionPlanCache(9322)
+
+	user := &User{Id: 9323, Username: "u9323", Password: "x", Group: "default", Quota: 0}
+	require.NoError(t, DB.Create(user).Error)
+	require.NoError(t, PurchaseSubscriptionWithBalance(9323, 9322))
+
+	// 首次扣费
+	beforeConsume := GetDBTimestamp()
+	result, err := PreConsumeUserSubscription("req-anchor-1", 9323, "gpt-4", 0, 100)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	var sub UserSubscription
+	require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", 9323, 9322).First(&sub).Error)
+	assert.Equal(t, beforeConsume, sub.LastResetTime, "首次使用时刻 = 窗口起点")
+	expectedNext := beforeConsume + 7*24*3600
+	assert.Equal(t, expectedNext, sub.NextResetTime, "窗口 = 首次使用 + 7 天")
+	assert.Equal(t, int64(100), sub.AmountUsed)
+}
+
+// 窗口内继续 consume 不重新锚定;窗口过后下一次 consume 推进到下一窗。
+func TestWeeklySlidingAnchor_RollsForwardAfterWindow(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9324, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9324).
+		Updates(map[string]any{"quota_reset_period": SubscriptionResetWeekly, "total_amount": 100000}).Error)
+	InvalidateSubscriptionPlanCache(9324)
+
+	user := &User{Id: 9325, Username: "u9325", Password: "x", Group: "default", Quota: 0}
+	require.NoError(t, DB.Create(user).Error)
+	require.NoError(t, PurchaseSubscriptionWithBalance(9325, 9324))
+
+	now := GetDBTimestamp()
+	// 手工造一个"窗口已过期"的状态:last_reset=8 天前,next_reset=1 天前
+	require.NoError(t, DB.Model(&UserSubscription{}).
+		Where("user_id = ? AND plan_id = ?", 9325, 9324).
+		Updates(map[string]any{
+			"amount_used":     int64(5000),
+			"last_reset_time": now - 8*24*3600,
+			"next_reset_time": now - 1*24*3600,
+		}).Error)
+
+	// 窗口已过 → 惰性重置会推进:amount_used 清零,窗口从"上一窗的结束"起再滑 7 天
+	// (不是从当前时刻,保持窗口连续性 — 这是 A 语义"窗口连续滚动"的关键)
+	_, err := PreConsumeUserSubscription("req-anchor-2", 9325, "gpt-4", 0, 100)
+	require.NoError(t, err)
+
+	var sub UserSubscription
+	require.NoError(t, DB.Where("user_id = ? AND plan_id = ?", 9325, 9324).First(&sub).Error)
+	assert.Equal(t, int64(100), sub.AmountUsed, "老窗口用量清零,只算这次")
+	// 上一窗 last_reset = now-8d, 7 天后结束 = now-1d; 再 +7d = now+6d
+	expectedNext := now + 6*24*3600
+	assert.Equal(t, expectedNext, sub.NextResetTime)
+	assert.Equal(t, now-1*24*3600, sub.LastResetTime)
+}
+
+// 读路径:next_reset_time=0 时不应被推进(等首次 consume 才锚定)。
+func TestWeeklySlidingAnchor_DisplayDoesNotAnchor(t *testing.T) {
+	truncateTables(t)
+	seedPlanWithSubQuota(t, 9326, "")
+	require.NoError(t, DB.Model(&SubscriptionPlan{}).Where("id = ?", 9326).
+		Updates(map[string]any{"quota_reset_period": SubscriptionResetWeekly, "total_amount": 1000}).Error)
+	InvalidateSubscriptionPlanCache(9326)
+
+	now := GetDBTimestamp()
+	sub := &UserSubscription{
+		Id:            9327,
+		UserId:        9328,
+		PlanId:        9326,
+		AmountTotal:   1000,
+		AmountUsed:    0,
+		StartTime:     now - 3600,
+		EndTime:       now + 30*24*3600,
+		Status:        "active",
+		LastResetTime: 0,
+		NextResetTime: 0, // 未锚定
+	}
+	require.NoError(t, DB.Create(sub).Error)
+
+	refreshSubscriptionResetForDisplay(sub, now)
+
+	assert.Equal(t, int64(0), sub.NextResetTime, "读路径不应锚定,等首次 consume")
 }

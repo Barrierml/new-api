@@ -373,15 +373,11 @@ func calcNextResetTime(base time.Time, plan *SubscriptionPlan, endUnix int64) in
 		next = time.Date(base.Year(), base.Month(), base.Day(), 0, 0, 0, 0, base.Location()).
 			AddDate(0, 0, 1)
 	case SubscriptionResetWeekly:
-		// Align to next Monday 00:00
-		weekday := int(base.Weekday()) // Sunday=0
-		// Convert to Monday=1..Sunday=7
-		if weekday == 0 {
-			weekday = 7
-		}
-		daysUntil := 8 - weekday
-		next = time.Date(base.Year(), base.Month(), base.Day(), 0, 0, 0, 0, base.Location()).
-			AddDate(0, 0, daysUntil)
+		// 滑动锚定:首次使用起 7 天固定窗口(不是日历对齐的周一 0 点)。
+		// base 由调用方给:购买时是购买时刻、重置后是上次重置时刻、
+		// 真正"首次使用"的锚定在 maybeResetUserSubscriptionWithPlanTx 里
+		// 通过 next_reset_time=0 + 第一次 PreConsume 来落地。
+		next = base.AddDate(0, 0, 7)
 	case SubscriptionResetMonthly:
 		// Align to first day of next month 00:00
 		next = time.Date(base.Year(), base.Month(), 1, 0, 0, 0, 0, base.Location()).
@@ -563,8 +559,12 @@ func createUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	resetBase := now
 	nextReset := calcNextResetTime(resetBase, plan, endUnix)
 	lastReset := int64(0)
-	if nextReset > 0 {
+	// weekly 滑动锚定:购买时不锚定,等用户第一次使用时才落地 7 天窗口。
+	// nextReset=0 在 maybeResetUserSubscriptionWithPlanTx 里被识别为"待首次使用"。
+	if nextReset > 0 && NormalizeResetPeriod(plan.QuotaResetPeriod) != SubscriptionResetWeekly {
 		lastReset = now.Unix()
+	} else if NormalizeResetPeriod(plan.QuotaResetPeriod) == SubscriptionResetWeekly {
+		nextReset = 0
 	}
 	upgradeGroup := strings.TrimSpace(plan.UpgradeGroup)
 	prevGroup := ""
@@ -1620,10 +1620,21 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	if tx == nil || sub == nil || plan == nil {
 		return errors.New("invalid reset args")
 	}
-	if sub.NextResetTime > 0 && sub.NextResetTime > now {
+	period := NormalizeResetPeriod(plan.QuotaResetPeriod)
+	if period == SubscriptionResetNever {
 		return nil
 	}
-	if NormalizeResetPeriod(plan.QuotaResetPeriod) == SubscriptionResetNever {
+	// weekly 滑动锚定:next_reset_time=0 表示"还没首次使用",等 PreConsume
+	// 真正扣费时在这里锚定 7 天窗口。读路径(refreshSubscriptionResetForDisplay)
+	// 看到 next_reset_time=0 就直接返回,不推进。
+	if period == SubscriptionResetWeekly && sub.NextResetTime == 0 {
+		sub.AmountUsed = 0
+		sub.LastResetTime = now
+		sub.NextResetTime = calcNextResetTime(time.Unix(now, 0), plan, sub.EndTime)
+		sub.SubQuotaResetAt = 0
+		return tx.Save(sub).Error
+	}
+	if sub.NextResetTime > 0 && sub.NextResetTime > now {
 		return nil
 	}
 	baseUnix := sub.LastResetTime
