@@ -22,6 +22,9 @@ import { describe, test } from 'node:test'
 import type { ApiKey } from '../../types'
 import {
   API_KEY_FORM_DEFAULT_VALUES,
+import type { TFunction } from 'i18next'
+
+  getApiKeyFormSchema,
   transformApiKeyToFormDefaults,
   transformFormDataToPayload,
 } from '../api-key-form'
@@ -29,6 +32,7 @@ import {
 const apiKey: ApiKey = {
   id: 1,
   name: 'billing-key',
+  name: 'ratio-key',
   key: 'sk-masked',
   status: 1,
   remain_quota: 0,
@@ -51,18 +55,51 @@ describe('API key billing preference form mapping', () => {
       ...API_KEY_FORM_DEFAULT_VALUES,
       billing_preference: null,
     })
-
     assert.equal(payload.billing_preference, '')
   })
-
   test('preserves an explicit key preference through form conversion', () => {
     const formValues = transformApiKeyToFormDefaults({
       ...apiKey,
       billing_preference: 'wallet_only',
-    })
     const payload = transformFormDataToPayload(formValues)
-
     assert.equal(formValues.billing_preference, 'wallet_only')
     assert.equal(payload.billing_preference, 'wallet_only')
+  max_channel_ratio: 0,
+describe('API key channel ratio form mapping', () => {
+  test('defaults to 0 (unlimited) as the maximum channel ratio', () => {
+    const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
+    assert.equal(payload.max_channel_ratio, 0)
+  test('preserves a custom maximum channel ratio through form conversion', () => {
+      max_channel_ratio: 1.5,
+    assert.equal(formValues.max_channel_ratio, 1.5)
+    assert.equal(payload.max_channel_ratio, 1.5)
+  test('rejects an empty or negative maximum channel ratio', () => {
+    const t = ((key: string) => key) as TFunction
+    const schema = getApiKeyFormSchema(t)
+    for (const maxChannelRatio of [undefined, -1]) {
+      const result = schema.safeParse({
+        ...API_KEY_FORM_DEFAULT_VALUES,
+        max_channel_ratio: maxChannelRatio,
+      })
+      assert.equal(result.success, false)
+      if (!result.success) {
+        assert.equal(
+          result.error.issues.find(
+            (issue) => issue.path[0] === 'max_channel_ratio'
+          )?.message,
+          'Channel ratio must be 0 (unlimited) or greater than 0'
+        )
+      }
+    }
+  })
+
+  test('accepts 0 as unlimited maximum channel ratio', () => {
+    const t = ((key: string) => key) as TFunction
+    const schema = getApiKeyFormSchema(t)
+    const result = schema.safeParse({
+      ...API_KEY_FORM_DEFAULT_VALUES,
+      max_channel_ratio: 0,
+    })
+    assert.equal(result.success, true)
   })
 })

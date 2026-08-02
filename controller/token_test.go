@@ -34,11 +34,12 @@ type tokenPageResponse struct {
 }
 
 type tokenResponseItem struct {
-	ID                int    `json:"id"`
-	Name              string `json:"name"`
-	Key               string `json:"key"`
-	Status            int    `json:"status"`
-	BillingPreference string `json:"billing_preference"`
+	ID                int     `json:"id"`
+	Name              string  `json:"name"`
+	Key               string  `json:"key"`
+	Status            int     `json:"status"`
+	BillingPreference string  `json:"billing_preference"`
+	MaxChannelRatio   float64 `json:"max_channel_ratio"`
 }
 
 type tokenKeyResponse struct {
@@ -633,4 +634,116 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	if strings.Contains(unauthorizedRecorder.Body.String(), token.Key) {
 		t.Fatalf("unauthorized key response leaked raw token key: %s", unauthorizedRecorder.Body.String())
 	}
+}
+
+func TestAddTokenDefaultsMaxChannelRatio(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "default-ratio-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	require.NotNil(t, token.MaxChannelRatio)
+	assert.Equal(t, model.DefaultTokenMaxChannelRatio, *token.MaxChannelRatio)
+}
+
+func TestAddTokenAcceptsZeroMaxChannelRatioAsUnlimited(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "unlimited-ratio-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"max_channel_ratio":    0,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	require.NotNil(t, token.MaxChannelRatio)
+	assert.Equal(t, 0.0, *token.MaxChannelRatio)
+	assert.Equal(t, 0.0, token.GetMaxChannelRatio())
+}
+
+func TestAddTokenRejectsNegativeMaxChannelRatio(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "invalid-ratio-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"max_channel_ratio":    -1,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	assert.False(t, response.Success)
+	var count int64
+	require.NoError(t, db.Model(&model.Token{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestUpdateTokenPersistsAndPreservesMaxChannelRatio(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "editable-ratio-key", "ratio1234token5678")
+	initialRatio := 2.5
+	require.NoError(t, db.Model(token).Update("max_channel_ratio", initialRatio).Error)
+
+	body := map[string]any{
+		"id":                   token.Id,
+		"name":                 token.Name,
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"max_channel_ratio":    1.5,
+	}
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
+	UpdateToken(ctx)
+	require.True(t, decodeAPIResponse(t, recorder).Success)
+
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	require.NotNil(t, updated.MaxChannelRatio)
+	assert.Equal(t, 1.5, *updated.MaxChannelRatio)
+
+	delete(body, "max_channel_ratio")
+	body["name"] = "renamed-ratio-key"
+	ctx, recorder = newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
+	UpdateToken(ctx)
+	require.True(t, decodeAPIResponse(t, recorder).Success)
+
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	require.NotNil(t, updated.MaxChannelRatio)
+	assert.Equal(t, 1.5, *updated.MaxChannelRatio)
 }

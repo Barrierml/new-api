@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -10,6 +11,11 @@ import (
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
 )
+
+// DefaultTokenMaxChannelRatio 是未显式设置 key 的默认渠道倍率上限。
+// 0 = 不限制(过滤逻辑只在 maxChannelRatio > 0 时生效)——高倍率渠道默认可用,
+// 需要管控时在 key 上显式设置正值。
+const DefaultTokenMaxChannelRatio = 0.0
 
 type Token struct {
 	Id                 int     `json:"id"`
@@ -30,7 +36,23 @@ type Token struct {
 	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
 	// BillingPreference 令牌级扣费策略，空字符串表示跟随用户设置
 	BillingPreference string         `json:"billing_preference" gorm:"default:''"`
+	MaxChannelRatio   *float64       `json:"max_channel_ratio"`
 	DeletedAt         gorm.DeletedAt `gorm:"index"`
+}
+
+func (token *Token) GetMaxChannelRatio() float64 {
+	if token == nil || token.MaxChannelRatio == nil {
+		return DefaultTokenMaxChannelRatio
+	}
+	if !IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+		return DefaultTokenMaxChannelRatio
+	}
+	return *token.MaxChannelRatio
+}
+
+// IsValidTokenMaxChannelRatio 允许 0(不限制)或任意正有限值;负值/NaN/Inf 非法。
+func IsValidTokenMaxChannelRatio(ratio float64) bool {
+	return ratio >= 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
 }
 
 func (token *Token) Clean() {
@@ -281,7 +303,7 @@ func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 		// Don't return error - fall through to DB
 	}
 	fromDB = true
-	err = DB.Where(commonKeyCol+" = ?", key).First(&token).Error
+	err = DB.Where(&Token{Key: key}).First(&token).Error
 	return token, err
 }
 
@@ -304,7 +326,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "billing_preference").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "billing_preference", "max_channel_ratio").Updates(token).Error
 	return err
 }
 

@@ -16,6 +16,7 @@ type RetryParam struct {
 	TokenGroup         string
 	ModelName          string
 	RequestPath        string
+	MaxChannelRatio    float64
 	Retry              *int
 	ExcludedChannelIDs map[int]struct{}
 	resetNextTry       bool
@@ -85,6 +86,7 @@ func (p *RetryParam) ResetRetryNextTry() {
 func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, error) {
 	var channel *model.Channel
 	var err error
+	var ratioLimitErr *model.ChannelRatioLimitError
 	selectGroup := param.TokenGroup
 	userGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyUserGroup)
 
@@ -120,7 +122,17 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			if len(param.ExcludedChannelIDs) > 0 {
 				priorityRetry = 0
 			}
-			channel, _ = model.GetRandomSatisfiedChannelWithExclusions(autoGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs)
+			channel, err = model.GetRandomSatisfiedChannelWithRatioLimit(autoGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, param.MaxChannelRatio)
+			if err != nil {
+				var currentRatioLimitErr *model.ChannelRatioLimitError
+				if !errors.As(err, &currentRatioLimitErr) {
+					return nil, autoGroup, err
+				}
+				if ratioLimitErr == nil || currentRatioLimitErr.MinAvailableRatio < ratioLimitErr.MinAvailableRatio {
+					ratioLimitErr = currentRatioLimitErr
+				}
+				channel = nil
+			}
 			if channel == nil {
 				// Current group has no available channel for this model, try next group
 				// 当前分组没有该模型的可用渠道，尝试下一个分组
@@ -157,12 +169,15 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			break
 		}
+		if channel == nil && ratioLimitErr != nil {
+			return nil, selectGroup, ratioLimitErr
+		}
 	} else {
 		priorityRetry := param.GetRetry()
 		if len(param.ExcludedChannelIDs) > 0 {
 			priorityRetry = 0
 		}
-		channel, err = model.GetRandomSatisfiedChannelWithExclusions(param.TokenGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs)
+		channel, err = model.GetRandomSatisfiedChannelWithRatioLimit(param.TokenGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, param.MaxChannelRatio)
 		if err != nil {
 			return nil, param.TokenGroup, err
 		}

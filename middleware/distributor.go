@@ -38,6 +38,7 @@ func Distribute() func(c *gin.Context) {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
+		maxChannelRatio, hasMaxChannelRatio := common.GetContextKeyType[float64](c, constant.ContextKeyTokenMaxChannelRatio)
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
@@ -51,6 +52,13 @@ func Distribute() func(c *gin.Context) {
 			}
 			if channel.Status != common.ChannelStatusEnabled {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
+				return
+			}
+			if hasMaxChannelRatio && channel.GetRatio() > maxChannelRatio {
+				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
+					"Model":    modelRequest.Model,
+					"MaxRatio": maxChannelRatio,
+				}), types.ErrorCodeChannelRatioLimitExceeded)
 				return
 			}
 		} else {
@@ -107,8 +115,12 @@ func Distribute() func(c *gin.Context) {
 
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, selectionModel, usingGroup); found {
 					affinityUsable := false
+					affinityOverRatioLimit := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
-					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
+					if err == nil && preferred != nil && hasMaxChannelRatio && preferred.GetRatio() > maxChannelRatio {
+						affinityOverRatioLimit = true
+					}
+					if !affinityOverRatioLimit && err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
 						if usingGroup == "auto" {
 							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
@@ -130,20 +142,29 @@ func Distribute() func(c *gin.Context) {
 							service.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
 						}
 					}
-					if !affinityUsable && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
+					if !affinityUsable && !affinityOverRatioLimit && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
 						service.ClearCurrentChannelAffinityCache(c)
 					}
 				}
 
 				if channel == nil {
 					channel, selectGroup, err = service.CacheGetRandomSatisfiedChannel(&service.RetryParam{
-						Ctx:         c,
-						ModelName:   selectionModel,
-						TokenGroup:  usingGroup,
-						RequestPath: c.Request.URL.Path,
-						Retry:       common.GetPointer(0),
+						Ctx:             c,
+						ModelName:       selectionModel,
+						TokenGroup:      usingGroup,
+						RequestPath:     c.Request.URL.Path,
+						MaxChannelRatio: maxChannelRatio,
+						Retry:           common.GetPointer(0),
 					})
 					if err != nil {
+						var ratioLimitErr *model.ChannelRatioLimitError
+						if errors.As(err, &ratioLimitErr) {
+							abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
+								"Model":    modelRequest.Model,
+								"MaxRatio": ratioLimitErr.MaxChannelRatio,
+							}), types.ErrorCodeChannelRatioLimitExceeded)
+							return
+						}
 						showGroup := usingGroup
 						if usingGroup == "auto" {
 							showGroup = fmt.Sprintf("auto(%s)", selectGroup)

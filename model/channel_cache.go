@@ -116,9 +116,13 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 }
 
 func GetRandomSatisfiedChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithRatioLimit(group, model, retry, requestPath, excluded, 0)
+}
+
+func GetRandomSatisfiedChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannelWithExclusions(group, model, retry, requestPath, excluded)
+		return GetChannelWithRatioLimit(group, model, retry, requestPath, excluded, maxChannelRatio)
 	}
 
 	channelSyncLock.RLock()
@@ -146,6 +150,28 @@ func GetRandomSatisfiedChannelWithExclusions(group string, model string, retry i
 		channels = filtered
 		if len(channels) == 0 {
 			return nil, nil
+		}
+	}
+	if maxChannelRatio > 0 {
+		filtered := make([]int, 0, len(channels))
+		minAvailableRatio := 0.0
+		for _, channelID := range channels {
+			channel, ok := channelsIDM[channelID]
+			if !ok {
+				return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelID)
+			}
+			ratio := channel.GetRatio()
+			if ratio <= maxChannelRatio {
+				filtered = append(filtered, channelID)
+				continue
+			}
+			if minAvailableRatio == 0 || ratio < minAvailableRatio {
+				minAvailableRatio = ratio
+			}
+		}
+		channels = filtered
+		if len(channels) == 0 {
+			return nil, &ChannelRatioLimitError{MaxChannelRatio: maxChannelRatio, MinAvailableRatio: minAvailableRatio}
 		}
 	}
 

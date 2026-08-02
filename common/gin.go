@@ -196,6 +196,13 @@ func GetContextKeyType[T any](c *gin.Context, key constant.ContextKey) (T, bool)
 	return t, false
 }
 
+func GetContextKeyTypeOrDefault[T any](c *gin.Context, key constant.ContextKey, defaultValue T) T {
+	if value, ok := GetContextKeyType[T](c, key); ok {
+		return value
+	}
+	return defaultValue
+}
+
 func ApiError(c *gin.Context, err error) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": false,
