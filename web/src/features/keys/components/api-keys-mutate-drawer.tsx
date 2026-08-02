@@ -489,6 +489,12 @@ export function ApiKeysMutateDrawer({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name='max_channel_ratio'
                 render={({ field, fieldState }) => (
                   <FormItem data-invalid={!!fieldState.error}>
