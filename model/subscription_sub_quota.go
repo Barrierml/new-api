@@ -365,16 +365,39 @@ func firstUseSlidingWindow(userId int, hours float64, resetAt, nowUnix int64) (i
 	return t0, t0 + blockSeconds, nil
 }
 
+// resolveSubQuotaLimits returns the effective sub-quota limits for a
+// subscription. When the plan row is available it always wins — admin edits
+// to subscription_plans (including clearing the limits entirely) take effect
+// on existing subscriptions immediately. The purchase-time snapshot on
+// user_subscriptions is only a fallback for when the plan cannot be read
+// (deleted plan, DB error, corrupt plan JSON), so billing never breaks.
+func resolveSubQuotaLimits(sub *UserSubscription) []SubscriptionSubQuotaLimit {
+	plan, err := GetSubscriptionPlanById(sub.PlanId)
+	if err == nil && plan != nil {
+		raw := strings.TrimSpace(plan.SubQuotaLimits)
+		if len(raw) == 0 {
+			// Plan exists but has no sub-limits: no limits, do not
+			// resurrect the purchase-time snapshot.
+			return nil
+		}
+		if limits, perr := parseSubQuotaLimits(plan.SubQuotaLimits); perr == nil {
+			return limits
+		}
+	}
+	limits, err := parseSubQuotaLimits(sub.SubQuotaLimits)
+	if err != nil {
+		return nil
+	}
+	return limits
+}
+
 // checkSubscriptionSubLimits verifies the candidate pre-consume amount does
 // not exceed any sub-limit window. Returns nil on success, error on violation.
 func checkSubscriptionSubLimits(userId int, sub *UserSubscription, amount int64, now int64) error {
 	if sub == nil || amount <= 0 {
 		return nil
 	}
-	limits, err := parseSubQuotaLimits(sub.SubQuotaLimits)
-	if err != nil {
-		return err
-	}
+	limits := resolveSubQuotaLimits(sub)
 	if len(limits) == 0 {
 		return nil
 	}
@@ -451,14 +474,13 @@ func BuildMainQuotaUsage(sub *UserSubscription) *MainQuotaUsage {
 
 // BuildSubQuotaUsage returns the per-limit usage summary list for a
 // subscription at nowUnix. Returns an empty slice if there are no sub-limits.
+// Uses the same live-plan resolution as enforcement so the display never
+// diverges from the limits actually being enforced.
 func BuildSubQuotaUsage(userId int, sub *UserSubscription, nowUnix int64) ([]SubscriptionSubQuotaUsage, error) {
 	if sub == nil {
 		return []SubscriptionSubQuotaUsage{}, nil
 	}
-	limits, err := parseSubQuotaLimits(sub.SubQuotaLimits)
-	if err != nil {
-		return nil, err
-	}
+	limits := resolveSubQuotaLimits(sub)
 	if len(limits) == 0 {
 		return []SubscriptionSubQuotaUsage{}, nil
 	}
