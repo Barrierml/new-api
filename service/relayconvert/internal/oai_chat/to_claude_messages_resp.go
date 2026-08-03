@@ -293,14 +293,13 @@ func StreamResponseOpenAI2Claude(openAIResponse *dto.ChatCompletionsStreamRespon
 		doneChunk := chosenChoice.FinishReason != nil && *chosenChoice.FinishReason != ""
 		if doneChunk {
 			info.FinishReason = *chosenChoice.FinishReason
-			oaiUsage := openAIResponse.Usage
-			if oaiUsage == nil {
-				oaiUsage = info.ClaudeConvertInfo.Usage
-				// Some upstreams emit finish_reason first, then send a final usage-only chunk.
-				// Defer closing until usage is available so the final message_delta carries it.
-				return claudeResponses
-			}
 		}
+		// NOTE: do not defer here when usage is absent. The delta below (tool_calls /
+		// reasoning / content) must always be converted for this chunk, otherwise
+		// upstreams that send finish_reason together with delta.tool_calls and only
+		// emit usage in a later usage-only chunk (e.g. minimax via OpenAI-compatible
+		// bridges) would have their tool_use blocks dropped. Closing is deferred at
+		// the end of this branch instead.
 
 		var claudeResponse dto.ClaudeResponse
 		var isEmpty bool
@@ -407,20 +406,28 @@ func StreamResponseOpenAI2Claude(openAIResponse *dto.ChatCompletionsStreamRespon
 		}
 
 		if doneChunk || info.ClaudeConvertInfo.Done {
-			stopOpenBlocks()
 			oaiUsage := openAIResponse.Usage
 			if oaiUsage == nil {
 				oaiUsage = info.ClaudeConvertInfo.Usage
 			}
-			if oaiUsage != nil {
-				claudeResponses = append(claudeResponses, &dto.ClaudeResponse{
-					Type:  "message_delta",
-					Usage: buildClaudeUsageFromOpenAIUsage(oaiUsage),
-					Delta: &dto.ClaudeMediaMessage{
-						StopReason: common.GetPointer[string](stopReasonOpenAI2Claude(info.FinishReason)),
-					},
-				})
+			if oaiUsage == nil {
+				// Some upstreams (e.g. minimax via OpenAI-compatible bridges) emit
+				// finish_reason together with delta.tool_calls in one chunk and only
+				// send usage in a subsequent usage-only chunk. The delta for this chunk
+				// has already been converted and appended above; defer stopOpenBlocks /
+				// message_delta / message_stop until the usage chunk arrives, so the
+				// tool_use content blocks are not closed before their deltas are sent.
+				// The choices-empty branch above handles the final close.
+				return claudeResponses
 			}
+			stopOpenBlocks()
+			claudeResponses = append(claudeResponses, &dto.ClaudeResponse{
+				Type:  "message_delta",
+				Usage: buildClaudeUsageFromOpenAIUsage(oaiUsage),
+				Delta: &dto.ClaudeMediaMessage{
+					StopReason: common.GetPointer[string](stopReasonOpenAI2Claude(info.FinishReason)),
+				},
+			})
 			claudeResponses = append(claudeResponses, &dto.ClaudeResponse{
 				Type: "message_stop",
 			})
