@@ -34,12 +34,13 @@ type tokenPageResponse struct {
 }
 
 type tokenResponseItem struct {
-	ID              int     `json:"id"`
-	Name            string  `json:"name"`
-	Key             string  `json:"key"`
-	Status          int     `json:"status"`
-	MaxChannelRatio float64 `json:"max_channel_ratio"`
-	MaxInputPrice   float64 `json:"max_input_price"`
+	ID                int     `json:"id"`
+	Name              string  `json:"name"`
+	Key               string  `json:"key"`
+	Status            int     `json:"status"`
+	BillingPreference string  `json:"billing_preference"`
+	MaxChannelRatio   float64 `json:"max_channel_ratio"`
+	MaxInputPrice     float64 `json:"max_input_price"`
 }
 
 type tokenKeyResponse struct {
@@ -509,6 +510,99 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	}
 }
 
+func TestAddTokenPersistsBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "wallet-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "  wallet_only  ",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	assert.Equal(t, "wallet_only", token.BillingPreference)
+}
+
+func TestAddTokenRejectsInvalidBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "invalid-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "charge_everything",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	assert.False(t, response.Success)
+	var count int64
+	require.NoError(t, db.Model(&model.Token{}).Count(&count).Error)
+	assert.Zero(t, count)
+}
+
+func TestUpdateTokenPersistsBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "editable-billing-key", "billing1234token5678")
+	body := map[string]any{
+		"id":                   token.Id,
+		"name":                 token.Name,
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"billing_preference":   "subscription_only",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
+	UpdateToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	assert.Equal(t, "subscription_only", updated.BillingPreference)
+}
+
+func TestUpdateTokenStatusPreservesBillingPreference(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "status-billing-key", "status1234token5678")
+	require.NoError(t, db.Model(token).Update("billing_preference", "wallet_only").Error)
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/?status_only=true", map[string]any{
+		"id":     token.Id,
+		"status": common.TokenStatusDisabled,
+	}, 1)
+	UpdateToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var updated model.Token
+	require.NoError(t, db.First(&updated, token.Id).Error)
+	assert.Equal(t, "wallet_only", updated.BillingPreference)
+	assert.Equal(t, common.TokenStatusDisabled, updated.Status)
+}
+
 func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	token := seedToken(t, db, 1, "owned-token", "owner1234token5678")
@@ -569,13 +663,39 @@ func TestAddTokenDefaultsPricingLimits(t *testing.T) {
 	assert.Equal(t, model.DefaultTokenMaxInputPrice, *token.MaxInputPrice)
 }
 
+func TestAddTokenAcceptsZeroMaxChannelRatioAsUnlimited(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "unlimited-ratio-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"max_channel_ratio":    0,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	require.NotNil(t, token.MaxChannelRatio)
+	assert.Equal(t, 0.0, *token.MaxChannelRatio)
+	assert.Equal(t, 0.0, token.GetMaxChannelRatio())
+}
+
 func TestAddTokenRejectsInvalidPricingLimits(t *testing.T) {
 	tests := []struct {
 		name  string
 		field string
 		value float64
 	}{
-		{name: "channel ratio must be positive", field: "max_channel_ratio", value: 0},
+		{name: "channel ratio cannot be negative", field: "max_channel_ratio", value: -1},
 		{name: "input price cannot be negative", field: "max_input_price", value: -1},
 	}
 	for _, test := range tests {

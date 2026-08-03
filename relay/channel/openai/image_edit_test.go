@@ -2,6 +2,7 @@ package openai
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -95,4 +96,47 @@ func TestConvertImageEditRequestMultipart(t *testing.T) {
 
 		convertAndReplay(t, c, prompt)
 	})
+}
+
+// TestConvertImageGenerationsWithReferenceImageReroutesToEdits 验证 playground
+// 图生图场景:JSON 请求带 image 参考图时,generations 请求被改打到
+// /images/edits(OpenAI generations 端点不认 image 字段);不带 image 或多
+// part 请求路径不变。
+func TestConvertImageGenerationsWithReferenceImageReroutesToEdits(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	a := &Adaptor{}
+
+	newJSONContext := func(t *testing.T) *gin.Context {
+		req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader([]byte(`{}`)))
+		req.Header.Set("Content-Type", "application/json")
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = req
+		return c
+	}
+
+	// 带参考图 → 路径改打 edits
+	info := &relaycommon.RelayInfo{
+		RelayMode:      relayconstant.RelayModeImagesGenerations,
+		RequestURLPath: "/v1/images/generations",
+	}
+	req := dto.ImageRequest{
+		Model:  "gpt-image-2",
+		Prompt: "edit it",
+		Image:  json.RawMessage(`"data:image/png;base64,AAA"`),
+	}
+	converted, err := a.ConvertImageRequest(newJSONContext(t), info, req)
+	require.NoError(t, err)
+	require.Equal(t, "/v1/images/edits", info.RequestURLPath)
+	got, ok := converted.(dto.ImageRequest)
+	require.True(t, ok)
+	require.Equal(t, "gpt-image-2", got.Model)
+
+	// 不带参考图 → 路径保持 generations
+	info2 := &relaycommon.RelayInfo{
+		RelayMode:      relayconstant.RelayModeImagesGenerations,
+		RequestURLPath: "/v1/images/generations",
+	}
+	_, err = a.ConvertImageRequest(newJSONContext(t), info2, dto.ImageRequest{Model: "gpt-image-2", Prompt: "draw"})
+	require.NoError(t, err)
+	require.Equal(t, "/v1/images/generations", info2.RequestURLPath)
 }

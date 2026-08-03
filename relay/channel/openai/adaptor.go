@@ -454,7 +454,22 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		if isJSONRequest(c) {
 			return request, nil
 		}
+	case relayconstant.RelayModeImagesGenerations:
+		// JSON 请求带参考图(image 字段,playground 图生图):OpenAI 系上游的
+		// generations 端点不认 image,需改打 images/edits。
+		// xai 渠道在自己 adaptor 里处理同样的事;OpenAI 兼容上游(sub2api 等)
+		// 支持 JSON edits(参考图字段原样透传)。
+		if isJSONRequest(c) && len(request.Image) > 0 {
+			var imageStr string
+			if err := common.Unmarshal(request.Image, &imageStr); err == nil && imageStr != "" {
+				info.RequestURLPath = strings.Replace(info.RequestURLPath, "/images/generations", "/images/edits", 1)
+			}
+		}
+		return request, nil
+	}
 
+	switch info.RelayMode {
+	case relayconstant.RelayModeImagesEdits:
 		var requestBody bytes.Buffer
 		writer := multipart.NewWriter(&requestBody)
 

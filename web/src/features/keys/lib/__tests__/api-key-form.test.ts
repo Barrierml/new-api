@@ -21,7 +21,7 @@ import { describe, test } from 'node:test'
 
 import type { TFunction } from 'i18next'
 
-import type { ApiKey } from '../../types'
+import { apiKeySchema, type ApiKey } from '../../types'
 import {
   API_KEY_FORM_DEFAULT_VALUES,
   getApiKeyFormSchema,
@@ -31,7 +31,7 @@ import {
 
 const apiKey: ApiKey = {
   id: 1,
-  name: 'ratio-key',
+  name: 'billing-key',
   key: 'sk-masked',
   status: 1,
   remain_quota: 0,
@@ -45,15 +45,35 @@ const apiKey: ApiKey = {
   model_limits_enabled: false,
   model_limits: '',
   allow_ips: '',
-  max_channel_ratio: 10,
+  billing_preference: '',
+  max_channel_ratio: 0,
   max_input_price: 999,
 }
+
+describe('API key billing preference form mapping', () => {
+  test('maps the inherited form selection to an empty API value', () => {
+    const payload = transformFormDataToPayload({
+      ...API_KEY_FORM_DEFAULT_VALUES,
+      billing_preference: null,
+    })
+    assert.equal(payload.billing_preference, '')
+  })
+
+  test('preserves an explicit key preference through form conversion', () => {
+    const formValues = transformApiKeyToFormDefaults({
+      ...apiKey,
+      billing_preference: 'wallet_only',
+    })
+    const payload = transformFormDataToPayload(formValues)
+    assert.equal(formValues.billing_preference, 'wallet_only')
+    assert.equal(payload.billing_preference, 'wallet_only')
+  })
+})
 
 describe('API key pricing limit form mapping', () => {
   test('uses the default channel ratio and input price limits', () => {
     const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
-
-    assert.equal(payload.max_channel_ratio, 10)
+    assert.equal(payload.max_channel_ratio, 0)
     assert.equal(payload.max_input_price, 999)
   })
 
@@ -64,18 +84,17 @@ describe('API key pricing limit form mapping', () => {
       max_input_price: 12.5,
     })
     const payload = transformFormDataToPayload(formValues)
-
     assert.equal(formValues.max_channel_ratio, 1.5)
     assert.equal(payload.max_channel_ratio, 1.5)
     assert.equal(formValues.max_input_price, 12.5)
     assert.equal(payload.max_input_price, 12.5)
   })
 
-  test('rejects an empty or non-positive maximum channel ratio', () => {
+  test('rejects an empty or negative maximum channel ratio', () => {
     const t = ((key: string) => key) as TFunction
     const schema = getApiKeyFormSchema(t)
 
-    for (const maxChannelRatio of [undefined, 0, -1]) {
+    for (const maxChannelRatio of [undefined, -1]) {
       const result = schema.safeParse({
         ...API_KEY_FORM_DEFAULT_VALUES,
         max_channel_ratio: maxChannelRatio,
@@ -87,10 +106,21 @@ describe('API key pricing limit form mapping', () => {
           result.error.issues.find(
             (issue) => issue.path[0] === 'max_channel_ratio'
           )?.message,
-          'Channel ratio must be greater than 0'
+          'Channel ratio must be 0 (unlimited) or greater than 0'
         )
       }
     }
+  })
+
+  test('accepts 0 as unlimited maximum channel ratio', () => {
+    const t = ((key: string) => key) as TFunction
+    const schema = getApiKeyFormSchema(t)
+    const result = schema.safeParse({
+      ...API_KEY_FORM_DEFAULT_VALUES,
+      name: 'unlimited-channel-ratio-key',
+      max_channel_ratio: 0,
+    })
+    assert.equal(result.success, true)
   })
 
   test('allows zero to disable the input price limit', () => {
@@ -124,5 +154,42 @@ describe('API key pricing limit form mapping', () => {
         )
       }
     }
+  })
+})
+
+describe('apiKeySchema legacy row tolerance', () => {
+  test('accepts rows where the new fields are NULL (pre-PR2/PR3 keys)', () => {
+    const parsed = apiKeySchema.parse({
+      ...apiKey,
+      billing_preference: null,
+      max_channel_ratio: null,
+      max_input_price: null,
+    })
+    assert.equal(parsed.billing_preference, '')
+    assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 999)
+  })
+
+  test('accepts rows where the new fields are missing entirely', () => {
+    const {
+      billing_preference: _bp,
+      max_channel_ratio: _mcr,
+      max_input_price: _mip,
+      ...rest
+    } = apiKey
+    const parsed = apiKeySchema.parse(rest)
+    assert.equal(parsed.billing_preference, '')
+    assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 999)
+  })
+
+  test('accepts 0 as stored unlimited pricing limits', () => {
+    const parsed = apiKeySchema.parse({
+      ...apiKey,
+      max_channel_ratio: 0,
+      max_input_price: 0,
+    })
+    assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 0)
   })
 })

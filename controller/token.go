@@ -175,6 +175,11 @@ func AddToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	token.BillingPreference = strings.TrimSpace(token.BillingPreference)
+	if !common.IsValidTokenBillingPreference(token.BillingPreference) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if token.MaxChannelRatio == nil {
 		maxChannelRatio := model.DefaultTokenMaxChannelRatio
 		token.MaxChannelRatio = &maxChannelRatio
@@ -239,6 +244,7 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+		BillingPreference:  token.BillingPreference,
 		MaxChannelRatio:    token.MaxChannelRatio,
 		MaxInputPrice:      token.MaxInputPrice,
 	}
@@ -276,9 +282,16 @@ func UpdateToken(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if statusOnly == "" && token.MaxChannelRatio != nil && !model.IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
-		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
-		return
+	if statusOnly == "" {
+		token.BillingPreference = strings.TrimSpace(token.BillingPreference)
+		if !common.IsValidTokenBillingPreference(token.BillingPreference) {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		if token.MaxChannelRatio != nil && !model.IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
 	}
 	if statusOnly == "" && token.MaxInputPrice != nil && !model.IsValidTokenMaxInputPrice(*token.MaxInputPrice) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -327,6 +340,7 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		cleanToken.BillingPreference = token.BillingPreference
 		if token.MaxChannelRatio != nil {
 			cleanToken.MaxChannelRatio = token.MaxChannelRatio
 		}

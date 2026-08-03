@@ -12,31 +12,36 @@ import (
 	"gorm.io/gorm"
 )
 
+// DefaultTokenMaxChannelRatio 是未显式设置 key 的默认渠道倍率上限。
+// 0 = 不限制(过滤逻辑只在 maxChannelRatio > 0 时生效)——高倍率渠道默认可用,
+// 需要管控时在 key 上显式设置正值。
 const (
-	DefaultTokenMaxChannelRatio = 10.0
+	DefaultTokenMaxChannelRatio = 0.0
 	DefaultTokenMaxInputPrice   = 999.0
 )
 
 type Token struct {
-	Id                 int            `json:"id"`
-	UserId             int            `json:"user_id" gorm:"index"`
-	Key                string         `json:"key" gorm:"type:varchar(128);uniqueIndex"`
-	Status             int            `json:"status" gorm:"default:1"`
-	Name               string         `json:"name" gorm:"index" `
-	CreatedTime        int64          `json:"created_time" gorm:"bigint"`
-	AccessedTime       int64          `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime        int64          `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
-	RemainQuota        int            `json:"remain_quota" gorm:"default:0"`
-	UnlimitedQuota     bool           `json:"unlimited_quota"`
-	ModelLimitsEnabled bool           `json:"model_limits_enabled"`
-	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
-	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
-	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
-	Group              string         `json:"group" gorm:"default:''"`
-	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
-	MaxChannelRatio    *float64       `json:"max_channel_ratio"`
-	MaxInputPrice      *float64       `json:"max_input_price"` // USD per 1M text input tokens
-	DeletedAt          gorm.DeletedAt `gorm:"index"`
+	Id                 int     `json:"id"`
+	UserId             int     `json:"user_id" gorm:"index"`
+	Key                string  `json:"key" gorm:"type:varchar(128);uniqueIndex"`
+	Status             int     `json:"status" gorm:"default:1"`
+	Name               string  `json:"name" gorm:"index" `
+	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
+	AccessedTime       int64   `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime        int64   `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
+	RemainQuota        int     `json:"remain_quota" gorm:"default:0"`
+	UnlimitedQuota     bool    `json:"unlimited_quota"`
+	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
+	ModelLimits        string  `json:"model_limits" gorm:"type:text"`
+	AllowIps           *string `json:"allow_ips" gorm:"default:''"`
+	UsedQuota          int     `json:"used_quota" gorm:"default:0"` // used quota
+	Group              string  `json:"group" gorm:"default:''"`
+	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	// BillingPreference 令牌级扣费策略，空字符串表示跟随用户设置
+	BillingPreference string         `json:"billing_preference" gorm:"default:''"`
+	MaxChannelRatio   *float64       `json:"max_channel_ratio"`
+	MaxInputPrice     *float64       `json:"max_input_price"` // USD per 1M text input tokens
+	DeletedAt         gorm.DeletedAt `gorm:"index"`
 }
 
 func (token *Token) GetMaxChannelRatio() float64 {
@@ -49,8 +54,9 @@ func (token *Token) GetMaxChannelRatio() float64 {
 	return *token.MaxChannelRatio
 }
 
+// IsValidTokenMaxChannelRatio 允许 0(不限制)或任意正有限值;负值/NaN/Inf 非法。
 func IsValidTokenMaxChannelRatio(ratio float64) bool {
-	return ratio > 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
+	return ratio >= 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
 }
 
 func (token *Token) GetMaxInputPrice() float64 {
@@ -338,7 +344,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "max_channel_ratio", "max_input_price").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "billing_preference", "max_channel_ratio", "max_input_price").Updates(token).Error
 	return err
 }
 
