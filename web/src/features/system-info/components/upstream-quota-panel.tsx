@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Gauge, RefreshCw } from 'lucide-react'
+import { CircleAlert, Gauge, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
@@ -81,16 +81,88 @@ function getDisplayName(
   })
 }
 
+function isFiveHourWindow(window: UpstreamQuotaWindow) {
+  const value = `${window.key ?? ''} ${window.label ?? ''}`.toLowerCase()
+  return (
+    value.includes('5h') ||
+    value.includes('5 h') ||
+    value.includes('5 hour') ||
+    window.duration_seconds === 5 * 60 * 60
+  )
+}
+
+function isWeeklyWindow(window: UpstreamQuotaWindow) {
+  const value = `${window.key ?? ''} ${window.label ?? ''}`.toLowerCase()
+  return value.includes('week') || window.duration_seconds === 7 * 24 * 60 * 60
+}
+
+function windowRank(window: UpstreamQuotaWindow) {
+  if (isWeeklyWindow(window)) return 0
+  if (isFiveHourWindow(window)) return 1
+  if (window.kind === 'rate_limit') return 2
+  if (window.kind === 'balance') return 4
+  return 3
+}
+
+function sortedWindows(windows: UpstreamQuotaWindow[] = []) {
+  return windows
+    .filter(
+      (window) =>
+        window.remaining !== undefined || window.remaining_pct !== undefined
+    )
+    .sort((left, right) => {
+      const rank = windowRank(left) - windowRank(right)
+      if (rank !== 0) return rank
+      return (left.remaining_pct ?? 101) - (right.remaining_pct ?? 101)
+    })
+}
+
+function hasUsefulWindows(entity: UpstreamQuotaEntity) {
+  return sortedWindows(entity.windows).length > 0
+}
+
+function entityRank(entity: UpstreamQuotaEntity) {
+  const windows = sortedWindows(entity.windows)
+  if (windows.some(isWeeklyWindow)) return 0
+  if (windows.some(isFiveHourWindow)) return 1
+  if (windows.length) return 2
+  return 3
+}
+
+function sortedEntities(entities: UpstreamQuotaEntity[]) {
+  return [...entities].sort((left, right) => {
+    const rank = entityRank(left) - entityRank(right)
+    if (rank !== 0) return rank
+    const remaining =
+      Math.min(
+        ...sortedWindows(left.windows).map(
+          (window) => window.remaining_pct ?? 101
+        )
+      ) -
+      Math.min(
+        ...sortedWindows(right.windows).map(
+          (window) => window.remaining_pct ?? 101
+        )
+      )
+    if (Number.isFinite(remaining) && remaining !== 0) return remaining
+    return left.entity_id.localeCompare(right.entity_id)
+  })
+}
+
 function groupEntitiesByProvider(entities: UpstreamQuotaEntity[]) {
   const groups = new Map<string, UpstreamQuotaEntity[]>()
-  for (const entity of entities) {
+  for (const entity of sortedEntities(entities)) {
     const provider = entity.provider || ''
     groups.set(provider, [...(groups.get(provider) ?? []), entity])
   }
   return Array.from(groups, ([provider, groupedEntities]) => ({
     provider,
     entities: groupedEntities,
-  }))
+  })).sort((left, right) => {
+    const rank = entityRank(left.entities[0]) - entityRank(right.entities[0])
+    if (rank !== 0) return rank
+    return left.provider.localeCompare(right.provider)
+  })
 }
 
 function IdList(props: { label: string; values?: number[] }) {
@@ -122,7 +194,10 @@ function ChannelPriority(props: { channel: UpstreamQuotaChannel }) {
   )
 }
 
-function QuotaWindowRow(props: { window: UpstreamQuotaWindow }) {
+function QuotaWindowRow(props: {
+  window: UpstreamQuotaWindow
+  prominent?: boolean
+}) {
   const { t } = useTranslation()
   const remaining = formatNumber(props.window.remaining)
   const percentage = formatNumber(props.window.remaining_pct)
@@ -138,12 +213,24 @@ function QuotaWindowRow(props: { window: UpstreamQuotaWindow }) {
       : Math.min(100, Math.max(0, props.window.remaining_pct))
 
   return (
-    <div className='space-y-1 rounded border px-2.5 py-2'>
+    <div
+      className={cn(
+        'space-y-1 rounded border px-2 py-1.5',
+        props.prominent && 'border-primary/20 bg-primary/[0.035]'
+      )}
+    >
       <div className='flex min-w-0 items-center justify-between gap-2 text-xs'>
-        <span className='truncate font-medium'>
+        <span
+          className={cn('truncate font-medium', props.prominent && 'text-sm')}
+        >
           {props.window.label || props.window.key || t('Unnamed quota window')}
         </span>
-        <span className='shrink-0 tabular-nums'>
+        <span
+          className={cn(
+            'shrink-0 tabular-nums',
+            props.prominent && 'text-sm font-semibold'
+          )}
+        >
           {remaining === null && percentage === null ? (
             <span className='text-muted-foreground'>{t('Unavailable')}</span>
           ) : (
@@ -173,9 +260,10 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
   const { t } = useTranslation()
   const effectiveStatus = props.entity.stale ? 'stale' : props.entity.status
   const fetchedAt = formatTime(props.entity.fetched_at)
+  const windows = sortedWindows(props.entity.windows)
 
   return (
-    <article className='bg-card rounded-md border p-2.5 shadow-xs'>
+    <article className='bg-card rounded-md border p-2 shadow-xs'>
       <div className='flex min-w-0 items-start justify-between gap-2'>
         <div className='min-w-0'>
           <div className='flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5'>
@@ -223,21 +311,40 @@ function QuotaEntityCard(props: { entity: UpstreamQuotaEntity }) {
         </div>
       )}
 
-      <div className='mt-2 grid gap-1.5 sm:grid-cols-2'>
-        {props.entity.windows?.length ? (
-          props.entity.windows.map((window) => (
-            <QuotaWindowRow
-              key={`${window.key || window.label || 'window'}-${window.kind || ''}-${window.reset_at ?? ''}`}
-              window={window}
-            />
-          ))
-        ) : (
-          <div className='text-muted-foreground rounded border border-dashed px-2.5 py-2 text-center text-xs sm:col-span-2'>
-            {t('No quota windows reported.')}
-          </div>
-        )}
+      <div className='mt-1.5 grid gap-1.5 sm:grid-cols-2'>
+        {windows.map((window) => (
+          <QuotaWindowRow
+            key={`${window.key || window.label || 'window'}-${window.kind || ''}-${window.reset_at ?? ''}`}
+            window={window}
+            prominent={isWeeklyWindow(window) || isFiveHourWindow(window)}
+          />
+        ))}
       </div>
     </article>
+  )
+}
+
+function UnavailableEntityPill(props: { entity: UpstreamQuotaEntity }) {
+  const { t } = useTranslation()
+  const effectiveStatus = props.entity.stale ? 'stale' : props.entity.status
+  return (
+    <span className='bg-card inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-[11px]'>
+      <CircleAlert className='text-muted-foreground size-3 shrink-0' />
+      <span className='truncate font-medium'>
+        {getDisplayName(props.entity, t)}
+      </span>
+      <Badge
+        variant='secondary'
+        className={cn(
+          'h-4 shrink-0 rounded-full px-1.5 text-[9px]',
+          STATUS_CLASS_NAME[effectiveStatus]
+        )}
+      >
+        {t(`upstreamQuota.status.${effectiveStatus}`, {
+          defaultValue: effectiveStatus,
+        })}
+      </Badge>
+    </span>
   )
 }
 
@@ -259,6 +366,9 @@ export function UpstreamQuotaPanel() {
   const dashboard = quotaQuery.data
   const refreshing = quotaQuery.isFetching && !quotaQuery.isLoading
   const generatedAt = formatTime(dashboard?.generated_at)
+  const usefulEntities = dashboard?.entities.filter(hasUsefulWindows) ?? []
+  const unavailableEntities =
+    dashboard?.entities.filter((entity) => !hasUsefulWindows(entity)) ?? []
   const statuses: Array<UpstreamQuotaStatus | 'stale'> = [
     'available',
     'limited',
@@ -300,26 +410,38 @@ export function UpstreamQuotaPanel() {
   } else {
     dashboardContent = (
       <div className='space-y-2'>
-        {groupEntitiesByProvider(dashboard.entities).map((group) => (
+        {groupEntitiesByProvider(usefulEntities).map((group) => (
           <section
             key={group.provider || 'unknown'}
-            className='bg-muted/20 rounded-md border p-2'
+            className='bg-muted/20 rounded-md border p-1.5'
           >
-            <div className='mb-1.5 flex items-center justify-between gap-2 px-0.5'>
-              <h4 className='text-sm font-semibold'>
+            <div className='mb-1 flex items-center justify-between gap-2 px-0.5'>
+              <h4 className='text-xs font-semibold'>
                 {getProviderLabel(group.provider, t)}
               </h4>
-              <span className='text-muted-foreground text-[11px]'>
+              <span className='text-muted-foreground text-[10px]'>
                 {t('{{count}} accounts', { count: group.entities.length })}
               </span>
             </div>
-            <div className='grid gap-2 lg:grid-cols-2'>
+            <div className='grid gap-1.5 xl:grid-cols-2'>
               {group.entities.map((entity) => (
                 <QuotaEntityCard key={entity.entity_id} entity={entity} />
               ))}
             </div>
           </section>
         ))}
+        {!!unavailableEntities.length && (
+          <section className='bg-muted/20 rounded-md border border-dashed px-2 py-1.5'>
+            <div className='flex flex-wrap items-center gap-1.5'>
+              <span className='text-muted-foreground mr-0.5 text-[11px] font-medium'>
+                {t('Unavailable')}
+              </span>
+              {sortedEntities(unavailableEntities).map((entity) => (
+                <UnavailableEntityPill key={entity.entity_id} entity={entity} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     )
   }
