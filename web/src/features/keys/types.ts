@@ -46,6 +46,7 @@ export const apiKeySchema = z.object({
   model_limits: z.string().nullish().default(''),
   allow_ips: z.string().nullish().default(''),
   max_channel_ratio: z.number().positive().optional().default(10),
+  max_input_price: z.number().nonnegative().optional().default(999),
 })
 
 export type ApiKey = z.infer<typeof apiKeySchema>
@@ -94,6 +95,7 @@ export interface ApiKeyFormData {
   group: string
   cross_group_retry: boolean
   max_channel_ratio: number
+  max_input_price: number
 }
 
 // ============================================================================

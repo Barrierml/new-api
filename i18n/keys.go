@@ -320,6 +320,7 @@ const (
 	MsgDistributorGetChannelFailed        = "distributor.get_channel_failed"
 	MsgDistributorNoAvailableChannel      = "distributor.no_available_channel"
 	MsgDistributorChannelRatioLimit       = "distributor.channel_ratio_limit_exceeded"
+	MsgDistributorChannelPricingLimit     = "distributor.channel_pricing_limit_exceeded"
 	MsgDistributorInvalidMidjourney       = "distributor.invalid_midjourney_request"
 	MsgDistributorInvalidParseModel       = "distributor.invalid_request_parse_model"
 )

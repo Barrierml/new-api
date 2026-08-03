@@ -33,15 +33,6 @@ type AbilityWithChannel struct {
 	ChannelWeight uint    `json:"channel_weight"`
 }
 
-type ChannelRatioLimitError struct {
-	MaxChannelRatio   float64
-	MinAvailableRatio float64
-}
-
-func (e *ChannelRatioLimitError) Error() string {
-	return fmt.Sprintf("no channel within ratio limit %.4g; minimum available ratio is %.4g", e.MaxChannelRatio, e.MinAvailableRatio)
-}
-
 func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 	var abilities []AbilityWithChannel
 	err := DB.Table("abilities").
@@ -88,10 +79,17 @@ func GetChannel(group string, model string, retry int, requestPath string) (*Cha
 }
 
 func GetChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
-	return GetChannelWithRatioLimit(group, model, retry, requestPath, excluded, 0)
+	return GetChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{})
 }
 
 func GetChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
+	return GetChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{
+		MaxChannelRatio: maxChannelRatio,
+		ratioOnly:       true,
+	})
+}
+
+func GetChannelWithPricingLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, pricingLimit ChannelPricingLimit) (*Channel, error) {
 	var abilities []Ability
 	query := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
 	if excludedIDs := channelIDsFromSet(excluded); len(excludedIDs) > 0 {
@@ -118,7 +116,7 @@ func GetChannelWithRatioLimit(group string, model string, retry int, requestPath
 	}
 
 	eligible := make([]Ability, 0, len(abilities))
-	minAvailableRatio := 0.0
+	var pricingLimitErr *ChannelPricingLimitError
 	for _, ability := range abilities {
 		channel, ok := channelsByID[ability.ChannelId]
 		if !ok {
@@ -130,18 +128,20 @@ func GetChannelWithRatioLimit(group string, model string, retry int, requestPath
 				continue
 			}
 		}
-		ratio := channel.GetRatio()
-		if maxChannelRatio > 0 && ratio > maxChannelRatio {
-			if minAvailableRatio == 0 || ratio < minAvailableRatio {
-				minAvailableRatio = ratio
+		limitResult := pricingLimit.Evaluate(channel.GetRatio())
+		if limitResult.Blocked {
+			if pricingLimitErr == nil {
+				pricingLimitErr = NewChannelPricingLimitError(pricingLimit, limitResult)
+			} else {
+				pricingLimitErr.Consider(limitResult)
 			}
 			continue
 		}
 		eligible = append(eligible, ability)
 	}
 	if len(eligible) == 0 {
-		if minAvailableRatio > 0 {
-			return nil, &ChannelRatioLimitError{MaxChannelRatio: maxChannelRatio, MinAvailableRatio: minAvailableRatio}
+		if pricingLimitErr != nil {
+			return nil, pricingLimitErr
 		}
 		return nil, nil
 	}

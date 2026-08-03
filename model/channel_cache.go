@@ -116,13 +116,20 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 }
 
 func GetRandomSatisfiedChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
-	return GetRandomSatisfiedChannelWithRatioLimit(group, model, retry, requestPath, excluded, 0)
+	return GetRandomSatisfiedChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{})
 }
 
 func GetRandomSatisfiedChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{
+		MaxChannelRatio: maxChannelRatio,
+		ratioOnly:       true,
+	})
+}
+
+func GetRandomSatisfiedChannelWithPricingLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, pricingLimit ChannelPricingLimit) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannelWithRatioLimit(group, model, retry, requestPath, excluded, maxChannelRatio)
+		return GetChannelWithPricingLimit(group, model, retry, requestPath, excluded, pricingLimit)
 	}
 
 	channelSyncLock.RLock()
@@ -152,27 +159,27 @@ func GetRandomSatisfiedChannelWithRatioLimit(group string, model string, retry i
 			return nil, nil
 		}
 	}
-	if maxChannelRatio > 0 {
-		filtered := make([]int, 0, len(channels))
-		minAvailableRatio := 0.0
-		for _, channelID := range channels {
-			channel, ok := channelsIDM[channelID]
-			if !ok {
-				return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelID)
-			}
-			ratio := channel.GetRatio()
-			if ratio <= maxChannelRatio {
-				filtered = append(filtered, channelID)
-				continue
-			}
-			if minAvailableRatio == 0 || ratio < minAvailableRatio {
-				minAvailableRatio = ratio
-			}
+	filtered := make([]int, 0, len(channels))
+	var pricingLimitErr *ChannelPricingLimitError
+	for _, channelID := range channels {
+		channel, ok := channelsIDM[channelID]
+		if !ok {
+			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelID)
 		}
-		channels = filtered
-		if len(channels) == 0 {
-			return nil, &ChannelRatioLimitError{MaxChannelRatio: maxChannelRatio, MinAvailableRatio: minAvailableRatio}
+		limitResult := pricingLimit.Evaluate(channel.GetRatio())
+		if !limitResult.Blocked {
+			filtered = append(filtered, channelID)
+			continue
 		}
+		if pricingLimitErr == nil {
+			pricingLimitErr = NewChannelPricingLimitError(pricingLimit, limitResult)
+		} else {
+			pricingLimitErr.Consider(limitResult)
+		}
+	}
+	channels = filtered
+	if len(channels) == 0 && pricingLimitErr != nil {
+		return nil, pricingLimitErr
 	}
 
 	if len(channels) == 1 {

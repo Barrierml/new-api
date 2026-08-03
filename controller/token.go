@@ -22,6 +22,8 @@ func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	maskedToken.Key = token.GetMaskedKey()
 	maxChannelRatio := token.GetMaxChannelRatio()
 	maskedToken.MaxChannelRatio = &maxChannelRatio
+	maxInputPrice := token.GetMaxInputPrice()
+	maskedToken.MaxInputPrice = &maxInputPrice
 	return &maskedToken
 }
 
@@ -180,6 +182,13 @@ func AddToken(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if token.MaxInputPrice == nil {
+		maxInputPrice := model.DefaultTokenMaxInputPrice
+		token.MaxInputPrice = &maxInputPrice
+	} else if !model.IsValidTokenMaxInputPrice(*token.MaxInputPrice) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -231,6 +240,7 @@ func AddToken(c *gin.Context) {
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
 		MaxChannelRatio:    token.MaxChannelRatio,
+		MaxInputPrice:      token.MaxInputPrice,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -267,6 +277,10 @@ func UpdateToken(c *gin.Context) {
 		return
 	}
 	if statusOnly == "" && token.MaxChannelRatio != nil && !model.IsValidTokenMaxChannelRatio(*token.MaxChannelRatio) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	if statusOnly == "" && token.MaxInputPrice != nil && !model.IsValidTokenMaxInputPrice(*token.MaxInputPrice) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
@@ -315,6 +329,9 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
 		if token.MaxChannelRatio != nil {
 			cleanToken.MaxChannelRatio = token.MaxChannelRatio
+		}
+		if token.MaxInputPrice != nil {
+			cleanToken.MaxInputPrice = token.MaxInputPrice
 		}
 	}
 	err = cleanToken.Update()

@@ -42,6 +42,9 @@ export function getApiKeyFormSchema(t: TFunction) {
       max_channel_ratio: z
         .number({ error: t('Channel ratio must be greater than 0') })
         .positive(t('Channel ratio must be greater than 0')),
+      max_input_price: z
+        .number({ error: t('Input price must be zero or greater') })
+        .nonnegative(t('Input price must be zero or greater')),
       tokenCount: z.number().min(1).optional(),
     })
     .superRefine((data, ctx) => {
@@ -78,6 +81,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   group: DEFAULT_GROUP,
   cross_group_retry: true,
   max_channel_ratio: 10,
+  max_input_price: 999,
   tokenCount: 1,
 }
 
@@ -116,6 +120,7 @@ export function transformFormDataToPayload(
     group: data.group || '',
     cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
     max_channel_ratio: data.max_channel_ratio,
+    max_input_price: data.max_input_price,
   }
 }
 
@@ -142,6 +147,7 @@ export function transformApiKeyToFormDefaults(
     group: apiKey.group || DEFAULT_GROUP,
     cross_group_retry: !!apiKey.cross_group_retry,
     max_channel_ratio: apiKey.max_channel_ratio ?? 10,
+    max_input_price: apiKey.max_input_price ?? 999,
     tokenCount: 1,
   }
 }

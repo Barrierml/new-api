@@ -12,7 +12,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const DefaultTokenMaxChannelRatio = 10.0
+const (
+	DefaultTokenMaxChannelRatio = 10.0
+	DefaultTokenMaxInputPrice   = 999.0
+)
 
 type Token struct {
 	Id                 int            `json:"id"`
@@ -32,6 +35,7 @@ type Token struct {
 	Group              string         `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
 	MaxChannelRatio    *float64       `json:"max_channel_ratio"`
+	MaxInputPrice      *float64       `json:"max_input_price"` // USD per 1M text input tokens
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
 }
 
@@ -47,6 +51,20 @@ func (token *Token) GetMaxChannelRatio() float64 {
 
 func IsValidTokenMaxChannelRatio(ratio float64) bool {
 	return ratio > 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
+}
+
+func (token *Token) GetMaxInputPrice() float64 {
+	if token == nil || token.MaxInputPrice == nil {
+		return DefaultTokenMaxInputPrice
+	}
+	if !IsValidTokenMaxInputPrice(*token.MaxInputPrice) {
+		return DefaultTokenMaxInputPrice
+	}
+	return *token.MaxInputPrice
+}
+
+func IsValidTokenMaxInputPrice(price float64) bool {
+	return price >= 0 && !math.IsNaN(price) && !math.IsInf(price, 0)
 }
 
 func (token *Token) Clean() {
@@ -320,7 +338,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "max_channel_ratio").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "max_channel_ratio", "max_input_price").Updates(token).Error
 	return err
 }
 

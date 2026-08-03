@@ -85,26 +85,34 @@ func createMiddlewarePATUser(t *testing.T, username, token string) *model.User {
 	return user
 }
 
-func TestSetupContextForTokenIncludesEffectiveMaxChannelRatio(t *testing.T) {
+func TestSetupContextForTokenIncludesEffectivePricingLimits(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	maxChannelRatio := 1.5
+	maxInputPrice := 2.5
 	token := &model.Token{
 		Id:              93,
 		UserId:          94,
 		Key:             "ratio-context-key",
 		MaxChannelRatio: &maxChannelRatio,
+		MaxInputPrice:   &maxInputPrice,
 	}
 
 	require.NoError(t, SetupContextForToken(ctx, token))
 	ratio, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyTokenMaxChannelRatio)
 	require.True(t, ok)
 	assert.Equal(t, 1.5, ratio)
+	inputPrice, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyTokenMaxInputPrice)
+	require.True(t, ok)
+	assert.Equal(t, 2.5, inputPrice)
 
 	defaultCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	require.NoError(t, SetupContextForToken(defaultCtx, &model.Token{}))
 	defaultRatio, ok := common.GetContextKeyType[float64](defaultCtx, constant.ContextKeyTokenMaxChannelRatio)
 	require.True(t, ok)
 	assert.Equal(t, model.DefaultTokenMaxChannelRatio, defaultRatio)
+	defaultInputPrice, ok := common.GetContextKeyType[float64](defaultCtx, constant.ContextKeyTokenMaxInputPrice)
+	require.True(t, ok)
+	assert.Equal(t, model.DefaultTokenMaxInputPrice, defaultInputPrice)
 }
 
 func TestUserAuthAllowsOpaqueDottedPAT(t *testing.T) {

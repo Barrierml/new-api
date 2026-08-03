@@ -46,24 +46,29 @@ const apiKey: ApiKey = {
   model_limits: '',
   allow_ips: '',
   max_channel_ratio: 10,
+  max_input_price: 999,
 }
 
-describe('API key channel ratio form mapping', () => {
-  test('uses 10 as the default maximum channel ratio', () => {
+describe('API key pricing limit form mapping', () => {
+  test('uses the default channel ratio and input price limits', () => {
     const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
 
     assert.equal(payload.max_channel_ratio, 10)
+    assert.equal(payload.max_input_price, 999)
   })
 
-  test('preserves a custom maximum channel ratio through form conversion', () => {
+  test('preserves custom pricing limits through form conversion', () => {
     const formValues = transformApiKeyToFormDefaults({
       ...apiKey,
       max_channel_ratio: 1.5,
+      max_input_price: 12.5,
     })
     const payload = transformFormDataToPayload(formValues)
 
     assert.equal(formValues.max_channel_ratio, 1.5)
     assert.equal(payload.max_channel_ratio, 1.5)
+    assert.equal(formValues.max_input_price, 12.5)
+    assert.equal(payload.max_input_price, 12.5)
   })
 
   test('rejects an empty or non-positive maximum channel ratio', () => {
@@ -83,6 +88,39 @@ describe('API key channel ratio form mapping', () => {
             (issue) => issue.path[0] === 'max_channel_ratio'
           )?.message,
           'Channel ratio must be greater than 0'
+        )
+      }
+    }
+  })
+
+  test('allows zero to disable the input price limit', () => {
+    const t = ((key: string) => key) as TFunction
+    const result = getApiKeyFormSchema(t).safeParse({
+      ...API_KEY_FORM_DEFAULT_VALUES,
+      name: 'zero-input-price-key',
+      max_input_price: 0,
+    })
+
+    assert.equal(result.success, true)
+  })
+
+  test('rejects an empty or negative input price limit', () => {
+    const t = ((key: string) => key) as TFunction
+    const schema = getApiKeyFormSchema(t)
+
+    for (const maxInputPrice of [undefined, -1]) {
+      const result = schema.safeParse({
+        ...API_KEY_FORM_DEFAULT_VALUES,
+        max_input_price: maxInputPrice,
+      })
+
+      assert.equal(result.success, false)
+      if (!result.success) {
+        assert.equal(
+          result.error.issues.find(
+            (issue) => issue.path[0] === 'max_input_price'
+          )?.message,
+          'Input price must be zero or greater'
         )
       }
     }

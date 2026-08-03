@@ -16,7 +16,7 @@ type RetryParam struct {
 	TokenGroup         string
 	ModelName          string
 	RequestPath        string
-	MaxChannelRatio    float64
+	PricingLimit       model.ChannelPricingLimit
 	Retry              *int
 	ExcludedChannelIDs map[int]struct{}
 	resetNextTry       bool
@@ -86,7 +86,7 @@ func (p *RetryParam) ResetRetryNextTry() {
 func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, error) {
 	var channel *model.Channel
 	var err error
-	var ratioLimitErr *model.ChannelRatioLimitError
+	var pricingLimitErr *model.ChannelPricingLimitError
 	selectGroup := param.TokenGroup
 	userGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyUserGroup)
 
@@ -122,14 +122,17 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			if len(param.ExcludedChannelIDs) > 0 {
 				priorityRetry = 0
 			}
-			channel, err = model.GetRandomSatisfiedChannelWithRatioLimit(autoGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, param.MaxChannelRatio)
+			groupPricingLimit := PricingLimitForGroup(param.PricingLimit, userGroup, autoGroup)
+			channel, err = model.GetRandomSatisfiedChannelWithPricingLimit(autoGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, groupPricingLimit)
 			if err != nil {
-				var currentRatioLimitErr *model.ChannelRatioLimitError
-				if !errors.As(err, &currentRatioLimitErr) {
+				var currentPricingLimitErr *model.ChannelPricingLimitError
+				if !errors.As(err, &currentPricingLimitErr) {
 					return nil, autoGroup, err
 				}
-				if ratioLimitErr == nil || currentRatioLimitErr.MinAvailableRatio < ratioLimitErr.MinAvailableRatio {
-					ratioLimitErr = currentRatioLimitErr
+				if pricingLimitErr == nil {
+					pricingLimitErr = currentPricingLimitErr
+				} else {
+					pricingLimitErr.Merge(currentPricingLimitErr)
 				}
 				channel = nil
 			}
@@ -169,15 +172,16 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			break
 		}
-		if channel == nil && ratioLimitErr != nil {
-			return nil, selectGroup, ratioLimitErr
+		if channel == nil && pricingLimitErr != nil {
+			return nil, selectGroup, pricingLimitErr
 		}
 	} else {
 		priorityRetry := param.GetRetry()
 		if len(param.ExcludedChannelIDs) > 0 {
 			priorityRetry = 0
 		}
-		channel, err = model.GetRandomSatisfiedChannelWithRatioLimit(param.TokenGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, param.MaxChannelRatio)
+		groupPricingLimit := PricingLimitForGroup(param.PricingLimit, userGroup, param.TokenGroup)
+		channel, err = model.GetRandomSatisfiedChannelWithPricingLimit(param.TokenGroup, param.ModelName, priorityRetry, param.RequestPath, param.ExcludedChannelIDs, groupPricingLimit)
 		if err != nil {
 			return nil, param.TokenGroup, err
 		}

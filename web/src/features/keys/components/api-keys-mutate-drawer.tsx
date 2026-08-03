@@ -52,6 +52,11 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -468,8 +473,47 @@ export function ApiKeysMutateDrawer({
                       />
                     </FormControl>
                     <FormDescription>
+                      {t('Used together with the maximum actual input price.')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='max_input_price'
+                render={({ field, fieldState }) => (
+                  <FormItem data-invalid={!!fieldState.error}>
+                    <FormLabel>{t('Maximum actual input price')}</FormLabel>
+                    <InputGroup>
+                      <InputGroupAddon>$</InputGroupAddon>
+                      <FormControl>
+                        <InputGroupInput
+                          {...field}
+                          type='number'
+                          min='0'
+                          step='0.01'
+                          value={
+                            Number.isFinite(field.value) ? field.value : ''
+                          }
+                          aria-invalid={!!fieldState.error}
+                          onChange={(event) => {
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : event.target.valueAsNumber
+                            )
+                          }}
+                        />
+                      </FormControl>
+                      <InputGroupAddon align='inline-end'>
+                        / 1M tokens
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FormDescription>
                       {t(
-                        'Channels with a higher ratio will not be used, including during retries.'
+                        'Channels are excluded only when both limits are exceeded. 0 disables the input price limit.'
                       )}
                     </FormDescription>
                     <FormMessage />

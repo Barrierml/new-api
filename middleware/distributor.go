@@ -38,7 +38,7 @@ func Distribute() func(c *gin.Context) {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
-		maxChannelRatio, hasMaxChannelRatio := common.GetContextKeyType[float64](c, constant.ContextKeyTokenMaxChannelRatio)
+		pricingLimit := service.ResolveTokenPricingLimit(c, modelRequest.Model)
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
@@ -54,11 +54,15 @@ func Distribute() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
-			if hasMaxChannelRatio && channel.GetRatio() > maxChannelRatio {
-				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
-					"Model":    modelRequest.Model,
-					"MaxRatio": maxChannelRatio,
-				}), types.ErrorCodeChannelRatioLimitExceeded)
+			groupPricingLimit := service.PricingLimitForGroup(
+				pricingLimit,
+				common.GetContextKeyString(c, constant.ContextKeyUserGroup),
+				service.CurrentPricingGroup(c, common.GetContextKeyString(c, constant.ContextKeyUsingGroup)),
+			)
+			limitResult := groupPricingLimit.Evaluate(channel.GetRatio())
+			if limitResult.Blocked {
+				pricingLimitErr := model.NewChannelPricingLimitError(groupPricingLimit, limitResult)
+				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelPricingLimitMessage(c, modelRequest.Model, pricingLimitErr), types.ErrorCodeChannelPricingLimitExceeded)
 				return
 			}
 		} else {
@@ -112,57 +116,63 @@ func Distribute() func(c *gin.Context) {
 				// 全局临时模型映射(路由层):选渠道/affinity 用映射后模型名,
 				// modelRequest.Model 保持原始值(original_model=原始模型,计费/日志不变)。
 				selectionModel := ratio_setting.ResolveGlobalMappedModel(modelRequest.Model)
+				pricingLimit = service.ResolveTokenPricingLimit(c, modelRequest.Model)
 
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, selectionModel, usingGroup); found {
 					affinityUsable := false
-					affinityOverRatioLimit := false
+					affinityRejectedByPricing := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
-					if err == nil && preferred != nil && hasMaxChannelRatio && preferred.GetRatio() > maxChannelRatio {
-						affinityOverRatioLimit = true
-					}
-					if !affinityOverRatioLimit && err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
+					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
+						userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 						if usingGroup == "auto" {
-							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
-								if model.IsChannelEnabledForGroupModel(g, selectionModel, preferred.Id) {
-									selectGroup = g
-									common.SetContextKey(c, constant.ContextKeyAutoGroup, g)
-									channel = preferred
-									affinityUsable = true
-									service.MarkChannelAffinityUsed(c, g, preferred.Id)
-									break
+								if !model.IsChannelEnabledForGroupModel(g, selectionModel, preferred.Id) {
+									continue
 								}
+								groupPricingLimit := service.PricingLimitForGroup(pricingLimit, userGroup, g)
+								if groupPricingLimit.Evaluate(preferred.GetRatio()).Blocked {
+									affinityRejectedByPricing = true
+									continue
+								}
+								selectGroup = g
+								common.SetContextKey(c, constant.ContextKeyAutoGroup, g)
+								channel = preferred
+								affinityUsable = true
+								service.MarkChannelAffinityUsed(c, g, preferred.Id)
+								break
 							}
 						} else if model.IsChannelEnabledForGroupModel(usingGroup, selectionModel, preferred.Id) {
-							channel = preferred
-							selectGroup = usingGroup
-							affinityUsable = true
-							service.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
+							groupPricingLimit := service.PricingLimitForGroup(pricingLimit, userGroup, usingGroup)
+							if groupPricingLimit.Evaluate(preferred.GetRatio()).Blocked {
+								affinityRejectedByPricing = true
+							} else {
+								channel = preferred
+								selectGroup = usingGroup
+								affinityUsable = true
+								service.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
+							}
 						}
 					}
-					if !affinityUsable && !affinityOverRatioLimit && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
+					if !affinityUsable && !affinityRejectedByPricing && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
 						service.ClearCurrentChannelAffinityCache(c)
 					}
 				}
 
 				if channel == nil {
 					channel, selectGroup, err = service.CacheGetRandomSatisfiedChannel(&service.RetryParam{
-						Ctx:             c,
-						ModelName:       selectionModel,
-						TokenGroup:      usingGroup,
-						RequestPath:     c.Request.URL.Path,
-						MaxChannelRatio: maxChannelRatio,
-						Retry:           common.GetPointer(0),
+						Ctx:          c,
+						ModelName:    selectionModel,
+						TokenGroup:   usingGroup,
+						RequestPath:  c.Request.URL.Path,
+						PricingLimit: pricingLimit,
+						Retry:        common.GetPointer(0),
 					})
 					if err != nil {
-						var ratioLimitErr *model.ChannelRatioLimitError
-						if errors.As(err, &ratioLimitErr) {
-							abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
-								"Model":    modelRequest.Model,
-								"MaxRatio": ratioLimitErr.MaxChannelRatio,
-							}), types.ErrorCodeChannelRatioLimitExceeded)
+						var pricingLimitErr *model.ChannelPricingLimitError
+						if errors.As(err, &pricingLimitErr) {
+							abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelPricingLimitMessage(c, modelRequest.Model, pricingLimitErr), types.ErrorCodeChannelPricingLimitExceeded)
 							return
 						}
 						showGroup := usingGroup
@@ -192,6 +202,23 @@ func Distribute() func(c *gin.Context) {
 			service.RecordChannelAffinity(c, channel.Id)
 		}
 	}
+}
+
+func ChannelPricingLimitMessage(c *gin.Context, modelName string, limitErr *model.ChannelPricingLimitError) string {
+	if limitErr == nil {
+		return i18n.T(c, i18n.MsgDistributorNoAvailableChannel, map[string]any{"Model": modelName, "Group": ""})
+	}
+	if limitErr.InputPriceComparable {
+		return i18n.T(c, i18n.MsgDistributorChannelPricingLimit, map[string]any{
+			"Model":         modelName,
+			"MaxRatio":      limitErr.MaxChannelRatio,
+			"MaxInputPrice": limitErr.MaxInputPrice,
+		})
+	}
+	return i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
+		"Model":    modelName,
+		"MaxRatio": limitErr.MaxChannelRatio,
+	})
 }
 
 // channelSupportsRequestPath reports whether a channel can serve the request path.

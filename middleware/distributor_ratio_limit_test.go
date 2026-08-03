@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -19,6 +20,12 @@ import (
 )
 
 func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
+	savedModelRatios := ratio_setting.ModelRatio2JSONString()
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"gpt-4.1-nano":0.05}`))
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(savedModelRatios))
+	})
+
 	previousDB := model.DB
 	previousLogDB := model.LOG_DB
 	previousMemoryCacheEnabled := common.MemoryCacheEnabled
@@ -46,7 +53,7 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 	user := &model.User{
 		Username: "ratio-e2e-user",
 		Password: "password-placeholder",
-		Role:     common.RoleCommonUser,
+		Role:     common.RoleAdminUser,
 		Status:   common.UserStatusEnabled,
 		Quota:    100000,
 		Group:    "default",
@@ -54,6 +61,7 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 	}
 	require.NoError(t, db.Create(user).Error)
 	maxChannelRatio := 3.0
+	maxInputPrice := model.DefaultTokenMaxInputPrice
 	token := &model.Token{
 		UserId:          user.Id,
 		Key:             "ratioe2etoken",
@@ -63,6 +71,7 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 		UnlimitedQuota:  true,
 		Group:           "default",
 		MaxChannelRatio: &maxChannelRatio,
+		MaxInputPrice:   &maxInputPrice,
 	}
 	require.NoError(t, db.Create(token).Error)
 
@@ -72,13 +81,13 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 	cheapRatio := 1.0
 	weight := uint(100)
 	channels := []model.Channel{
-		{Id: 201, Name: "expensive", Status: common.ChannelStatusEnabled, Models: "gpt-ratio-e2e", Group: "default", Priority: &highPriority, Weight: &weight, Ratio: &expensiveRatio},
-		{Id: 202, Name: "cheap", Status: common.ChannelStatusEnabled, Models: "gpt-ratio-e2e", Group: "default", Priority: &lowPriority, Weight: &weight, Ratio: &cheapRatio},
+		{Id: 201, Name: "expensive", Status: common.ChannelStatusEnabled, Models: "gpt-4.1-nano", Group: "default", Priority: &highPriority, Weight: &weight, Ratio: &expensiveRatio},
+		{Id: 202, Name: "cheap", Status: common.ChannelStatusEnabled, Models: "gpt-4.1-nano", Group: "default", Priority: &lowPriority, Weight: &weight, Ratio: &cheapRatio},
 	}
 	require.NoError(t, db.Create(&channels).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
-		{Group: "default", Model: "gpt-ratio-e2e", ChannelId: 201, Enabled: true, Priority: &highPriority, Weight: weight},
-		{Group: "default", Model: "gpt-ratio-e2e", ChannelId: 202, Enabled: true, Priority: &lowPriority, Weight: weight},
+		{Group: "default", Model: "gpt-4.1-nano", ChannelId: 201, Enabled: true, Priority: &highPriority, Weight: weight},
+		{Group: "default", Model: "gpt-4.1-nano", ChannelId: 202, Enabled: true, Priority: &lowPriority, Weight: weight},
 	}).Error)
 	model.InitChannelCache()
 	service.ClearChannelAffinityCacheAll()
@@ -92,7 +101,7 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"channel_id": c.GetInt("channel_id")})
 	})
 
-	requestBody := `{"model":"gpt-ratio-e2e","prompt_cache_key":"ratio-affinity-e2e"}`
+	requestBody := `{"model":"gpt-4.1-nano","prompt_cache_key":"ratio-affinity-e2e"}`
 	request := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(requestBody))
 	request.Header.Set("Authorization", "Bearer sk-"+token.Key)
 	request.Header.Set("Content-Type", "application/json")
@@ -116,10 +125,24 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, response.Code)
 	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &successBody))
+	assert.Equal(t, 201, successBody.ChannelID)
+
+	maxInputPrice = 0.15
+	require.NoError(t, db.Model(token).Update("max_input_price", maxInputPrice).Error)
+	request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(requestBody))
+	request.Header.Set("Authorization", "Bearer sk-"+token.Key)
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &successBody))
 	assert.Equal(t, 202, successBody.ChannelID)
 
 	tooLowRatio := 0.5
 	require.NoError(t, db.Model(token).Update("max_channel_ratio", tooLowRatio).Error)
+	maxInputPrice = 0.05
+	require.NoError(t, db.Model(token).Update("max_input_price", maxInputPrice).Error)
 	request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(requestBody))
 	request.Header.Set("Authorization", "Bearer sk-"+token.Key)
 	request.Header.Set("Content-Type", "application/json")
@@ -133,5 +156,31 @@ func TestTokenChannelRatioLimitEndToEnd(t *testing.T) {
 		} `json:"error"`
 	}
 	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &errorBody))
-	assert.Equal(t, string(types.ErrorCodeChannelRatioLimitExceeded), errorBody.Error.Code)
+	assert.Equal(t, string(types.ErrorCodeChannelPricingLimitExceeded), errorBody.Error.Code)
+
+	maxChannelRatio = 1.5
+	maxInputPrice = model.DefaultTokenMaxInputPrice
+	require.NoError(t, db.Model(token).Updates(map[string]any{
+		"max_channel_ratio": maxChannelRatio,
+		"max_input_price":   maxInputPrice,
+	}).Error)
+	request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(requestBody))
+	request.Header.Set("Authorization", "Bearer sk-"+token.Key+"-201")
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusOK, response.Code)
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &successBody))
+	assert.Equal(t, 201, successBody.ChannelID)
+
+	maxInputPrice = 0.15
+	require.NoError(t, db.Model(token).Update("max_input_price", maxInputPrice).Error)
+	request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewBufferString(requestBody))
+	request.Header.Set("Authorization", "Bearer sk-"+token.Key+"-201")
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &errorBody))
+	assert.Equal(t, string(types.ErrorCodeChannelPricingLimitExceeded), errorBody.Error.Code)
 }
