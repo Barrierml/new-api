@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const oauthAuthFlowTTL = 10 * time.Minute
@@ -330,6 +331,21 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		}
 	}
 
+	// A Google identity with an explicitly verified email may be linked to the
+	// existing account instead of creating a duplicate user.
+	if genericProvider, ok := provider.(*oauth.GenericOAuthProvider); ok &&
+		genericProvider.GetConfig().Slug == "google" &&
+		genericProvider.GetConfig().UserInfoEndpoint == "https://openidconnect.googleapis.com/v1/userinfo" &&
+		oauthUser.EmailVerified {
+		linkedUser, found, err := linkVerifiedOAuthEmail(genericProvider, oauthUser)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			return linkedUser, nil
+		}
+	}
+
 	// User doesn't exist, create new user if registration is enabled
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
@@ -431,6 +447,61 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	return user, nil
+}
+
+func linkVerifiedOAuthEmail(provider *oauth.GenericOAuthProvider, oauthUser *oauth.OAuthUser) (*model.User, bool, error) {
+	email := model.NormalizeEmail(oauthUser.Email)
+	if email == "" {
+		return nil, false, nil
+	}
+
+	var linkedUser *model.User
+	err := model.DB.Transaction(func(tx *gorm.DB) error {
+		var users []model.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("LOWER(email) = ?", email).Limit(2).Find(&users).Error; err != nil {
+			return err
+		}
+		if len(users) == 0 {
+			return nil
+		}
+		if len(users) != 1 {
+			return model.ErrEmailAmbiguous
+		}
+
+		user := users[0]
+		if user.Status != common.UserStatusEnabled {
+			return &OAuthUserDeletedError{}
+		}
+
+		var existing model.UserOAuthBinding
+		err := tx.Where("user_id = ? AND provider_id = ?", user.Id, provider.GetProviderId()).First(&existing).Error
+		switch {
+		case err == nil:
+			if existing.ProviderUserId != oauthUser.ProviderUserID {
+				return &OAuthEmailAlreadyTakenError{}
+			}
+			linkedUser = &user
+			return nil
+		case !errors.Is(err, gorm.ErrRecordNotFound):
+			return err
+		}
+
+		binding := &model.UserOAuthBinding{
+			UserId:         user.Id,
+			ProviderId:     provider.GetProviderId(),
+			ProviderUserId: oauthUser.ProviderUserID,
+		}
+		if err := model.CreateUserOAuthBindingWithTx(tx, binding); err != nil {
+			return err
+		}
+		linkedUser = &user
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return linkedUser, linkedUser != nil, nil
 }
 
 // Error types for OAuth
