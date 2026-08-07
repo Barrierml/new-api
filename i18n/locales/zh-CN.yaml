@@ -272,6 +272,7 @@ distributor.get_channel_failed: "获取分组 {{.Group}} 下模型 {{.Model}} �
 distributor.no_available_channel: "分组 {{.Group}} 下模型 {{.Model}} 无可用渠道（distributor）"
 distributor.channel_ratio_limit_exceeded: "模型 {{.Model}} 没有倍率不超过 {{.MaxRatio}}x 的可用渠道"
 distributor.channel_pricing_limit_exceeded: "模型 {{.Model}} 的所有可用渠道均同时超过渠道倍率上限 {{.MaxRatio}}x 和输入单价上限 ${{.MaxInputPrice}} / 1M tokens"
+distributor.channel_safety_limit_exceeded: "当前 API Key 仅允许使用安全渠道，但模型 {{.Model}} 没有可用的安全渠道"
 distributor.invalid_midjourney_request: "无效的midjourney请求，{{.Error}}"
 distributor.invalid_request_parse_model: "无效的请求，无法解析模型"
 

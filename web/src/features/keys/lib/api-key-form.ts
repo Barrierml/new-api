@@ -52,6 +52,7 @@ export function getApiKeyFormSchema(t: TFunction) {
       max_input_price: z
         .number({ error: t('Input price must be zero or greater') })
         .nonnegative(t('Input price must be zero or greater')),
+      allow_unsafe_channels: z.boolean(),
       tokenCount: z.number().min(1).optional(),
     })
     .superRefine((data, ctx) => {
@@ -90,6 +91,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   billing_preference: null,
   max_channel_ratio: 0,
   max_input_price: 999,
+  allow_unsafe_channels: false,
   tokenCount: 1,
 }
 
@@ -130,6 +132,7 @@ export function transformFormDataToPayload(
     billing_preference: data.billing_preference ?? '',
     max_channel_ratio: data.max_channel_ratio,
     max_input_price: data.max_input_price,
+    allow_unsafe_channels: data.allow_unsafe_channels,
   }
 }
 
@@ -158,6 +161,7 @@ export function transformApiKeyToFormDefaults(
     billing_preference: apiKey.billing_preference || null,
     max_channel_ratio: apiKey.max_channel_ratio ?? 0,
     max_input_price: apiKey.max_input_price ?? 999,
+    allow_unsafe_channels: apiKey.allow_unsafe_channels ?? true,
     tokenCount: 1,
   }
 }

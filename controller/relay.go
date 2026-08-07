@@ -184,10 +184,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		TokenGroup: relayInfo.TokenGroup,
 		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
-		ModelName:    ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
-		RequestPath:  c.Request.URL.Path,
-		PricingLimit: service.ResolveTokenPricingLimit(c, relayInfo.OriginModelName),
-		Retry:        common.GetPointer(0),
+		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
+		RequestPath:     c.Request.URL.Path,
+		SelectionPolicy: service.ResolveTokenChannelSelectionPolicy(c, relayInfo.OriginModelName),
+		Retry:           common.GetPointer(0),
 	}
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
@@ -318,12 +318,12 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	if lockedChannelID := service.GetLockedRetryChannelID(c); lockedChannelID > 0 {
 		channel, err := model.CacheGetChannel(lockedChannelID)
 		if err == nil {
-			groupPricingLimit := service.PricingLimitForGroup(
-				retryParam.PricingLimit,
+			groupPolicy := retryParam.SelectionPolicy.WithPricingLimit(service.PricingLimitForGroup(
+				retryParam.SelectionPolicy.PricingLimit,
 				info.UserGroup,
 				service.CurrentPricingGroup(c, info.UsingGroup),
-			)
-			if groupPricingLimit.Evaluate(channel.GetRatio()).Blocked {
+			))
+			if groupPolicy.Evaluate(channel).Blocked {
 				service.ClearLockedRetryChannel(c)
 			} else {
 				newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
@@ -345,6 +345,11 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		if errors.As(err, &pricingLimitErr) {
 			message := middleware.ChannelPricingLimitMessage(c, info.OriginModelName, pricingLimitErr)
 			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelPricingLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+		}
+		var safetyLimitErr *model.ChannelSafetyLimitError
+		if errors.As(err, &safetyLimitErr) {
+			message := middleware.ChannelSafetyLimitMessage(c, info.OriginModelName)
+			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelSafetyLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
 		}
 		return nil, types.NewError(fmt.Errorf("获取分组 %s 下模型 %s 的可用渠道失败（retry）: %s", selectGroup, info.OriginModelName, err.Error()), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
@@ -550,10 +555,10 @@ func RelayTask(c *gin.Context) {
 		TokenGroup: relayInfo.TokenGroup,
 		// 全局临时模型映射(路由层):选渠道/重试按映射后模型名(兜底落到目标模型渠道池);
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
-		ModelName:    ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
-		RequestPath:  c.Request.URL.Path,
-		PricingLimit: service.ResolveTokenPricingLimit(c, relayInfo.OriginModelName),
-		Retry:        common.GetPointer(0),
+		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
+		RequestPath:     c.Request.URL.Path,
+		SelectionPolicy: service.ResolveTokenChannelSelectionPolicy(c, relayInfo.OriginModelName),
+		Retry:           common.GetPointer(0),
 	}
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
@@ -561,14 +566,19 @@ func RelayTask(c *gin.Context) {
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
 			channel = lockedCh
-			groupPricingLimit := service.PricingLimitForGroup(
-				retryParam.PricingLimit,
+			groupPolicy := retryParam.SelectionPolicy.WithPricingLimit(service.PricingLimitForGroup(
+				retryParam.SelectionPolicy.PricingLimit,
 				relayInfo.UserGroup,
 				service.CurrentPricingGroup(c, relayInfo.UsingGroup),
-			)
-			limitResult := groupPricingLimit.Evaluate(channel.GetRatio())
-			if limitResult.Blocked {
-				pricingLimitErr := model.NewChannelPricingLimitError(groupPricingLimit, limitResult)
+			))
+			policyResult := groupPolicy.Evaluate(channel)
+			if policyResult.SafetyBlocked {
+				message := middleware.ChannelSafetyLimitMessage(c, relayInfo.OriginModelName)
+				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelSafetyLimitExceeded), http.StatusServiceUnavailable)
+				break
+			}
+			if policyResult.Blocked {
+				pricingLimitErr := model.NewChannelPricingLimitError(groupPolicy.PricingLimit, policyResult.PricingResult)
 				message := middleware.ChannelPricingLimitMessage(c, relayInfo.OriginModelName, pricingLimitErr)
 				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelPricingLimitExceeded), http.StatusServiceUnavailable)
 				break
@@ -584,7 +594,8 @@ func RelayTask(c *gin.Context) {
 			channel, channelErr = getChannel(c, relayInfo, retryParam)
 			if channelErr != nil {
 				logger.LogError(c, channelErr.Error())
-				if channelErr.GetErrorCode() == types.ErrorCodeChannelPricingLimitExceeded {
+				if channelErr.GetErrorCode() == types.ErrorCodeChannelPricingLimitExceeded ||
+					channelErr.GetErrorCode() == types.ErrorCodeChannelSafetyLimitExceeded {
 					taskErr = service.TaskErrorWrapperLocal(channelErr.Err, string(channelErr.GetErrorCode()), channelErr.StatusCode)
 					break
 				}

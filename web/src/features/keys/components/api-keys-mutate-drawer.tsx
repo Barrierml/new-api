@@ -572,6 +572,31 @@ export function ApiKeysMutateDrawer({
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name='allow_unsafe_channels'
+                render={({ field }) => (
+                  <FormItem className={sideDrawerSwitchItemClassName()}>
+                    <div className='flex flex-col gap-0.5'>
+                      <FormLabel className='text-sm'>
+                        {t('Allow unsafe channels')}
+                      </FormLabel>
+                      <FormDescription className='text-xs'>
+                        {t(
+                          'When disabled, only channels explicitly marked as security verified can be used, including during retries.'
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
               {!unlimitedQuota && (
                 <FormField
                   control={form.control}

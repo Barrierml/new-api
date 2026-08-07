@@ -48,6 +48,7 @@ const apiKey: ApiKey = {
   billing_preference: '',
   max_channel_ratio: 0,
   max_input_price: 999,
+  allow_unsafe_channels: false,
 }
 
 describe('API key billing preference form mapping', () => {
@@ -157,6 +158,25 @@ describe('API key pricing limit form mapping', () => {
   })
 })
 
+describe('API key channel safety form mapping', () => {
+  test('disallows unsafe channels for newly created keys by default', () => {
+    const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
+
+    assert.equal(payload.allow_unsafe_channels, false)
+  })
+
+  test('preserves an explicit unsafe-channel choice through form conversion', () => {
+    const formValues = transformApiKeyToFormDefaults({
+      ...apiKey,
+      allow_unsafe_channels: true,
+    })
+    const payload = transformFormDataToPayload(formValues)
+
+    assert.equal(formValues.allow_unsafe_channels, true)
+    assert.equal(payload.allow_unsafe_channels, true)
+  })
+})
+
 describe('apiKeySchema legacy row tolerance', () => {
   test('accepts rows where the new fields are NULL (pre-PR2/PR3 keys)', () => {
     const parsed = apiKeySchema.parse({
@@ -164,10 +184,12 @@ describe('apiKeySchema legacy row tolerance', () => {
       billing_preference: null,
       max_channel_ratio: null,
       max_input_price: null,
+      allow_unsafe_channels: null,
     })
     assert.equal(parsed.billing_preference, '')
     assert.equal(parsed.max_channel_ratio, 0)
     assert.equal(parsed.max_input_price, 999)
+    assert.equal(parsed.allow_unsafe_channels, true)
   })
 
   test('accepts rows where the new fields are missing entirely', () => {
@@ -175,12 +197,14 @@ describe('apiKeySchema legacy row tolerance', () => {
       billing_preference: _bp,
       max_channel_ratio: _mcr,
       max_input_price: _mip,
+      allow_unsafe_channels: _auc,
       ...rest
     } = apiKey
     const parsed = apiKeySchema.parse(rest)
     assert.equal(parsed.billing_preference, '')
     assert.equal(parsed.max_channel_ratio, 0)
     assert.equal(parsed.max_input_price, 999)
+    assert.equal(parsed.allow_unsafe_channels, true)
   })
 
   test('accepts 0 as stored unlimited pricing limits', () => {

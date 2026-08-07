@@ -38,7 +38,7 @@ func Distribute() func(c *gin.Context) {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
-		pricingLimit := service.ResolveTokenPricingLimit(c, modelRequest.Model)
+		selectionPolicy := service.ResolveTokenChannelSelectionPolicy(c, modelRequest.Model)
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
@@ -54,14 +54,18 @@ func Distribute() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
-			groupPricingLimit := service.PricingLimitForGroup(
-				pricingLimit,
+			groupPolicy := selectionPolicy.WithPricingLimit(service.PricingLimitForGroup(
+				selectionPolicy.PricingLimit,
 				common.GetContextKeyString(c, constant.ContextKeyUserGroup),
 				service.CurrentPricingGroup(c, common.GetContextKeyString(c, constant.ContextKeyUsingGroup)),
-			)
-			limitResult := groupPricingLimit.Evaluate(channel.GetRatio())
-			if limitResult.Blocked {
-				pricingLimitErr := model.NewChannelPricingLimitError(groupPricingLimit, limitResult)
+			))
+			policyResult := groupPolicy.Evaluate(channel)
+			if policyResult.SafetyBlocked {
+				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelSafetyLimitMessage(c, modelRequest.Model), types.ErrorCodeChannelSafetyLimitExceeded)
+				return
+			}
+			if policyResult.Blocked {
+				pricingLimitErr := model.NewChannelPricingLimitError(groupPolicy.PricingLimit, policyResult.PricingResult)
 				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelPricingLimitMessage(c, modelRequest.Model, pricingLimitErr), types.ErrorCodeChannelPricingLimitExceeded)
 				return
 			}
@@ -116,11 +120,12 @@ func Distribute() func(c *gin.Context) {
 				// 全局临时模型映射(路由层):选渠道/affinity 用映射后模型名,
 				// modelRequest.Model 保持原始值(original_model=原始模型,计费/日志不变)。
 				selectionModel := ratio_setting.ResolveGlobalMappedModel(modelRequest.Model)
-				pricingLimit = service.ResolveTokenPricingLimit(c, modelRequest.Model)
+				selectionPolicy = service.ResolveTokenChannelSelectionPolicy(c, modelRequest.Model)
 
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, selectionModel, usingGroup); found {
 					affinityUsable := false
 					affinityRejectedByPricing := false
+					affinityRejectedBySafety := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
@@ -131,8 +136,15 @@ func Distribute() func(c *gin.Context) {
 								if !model.IsChannelEnabledForGroupModel(g, selectionModel, preferred.Id) {
 									continue
 								}
-								groupPricingLimit := service.PricingLimitForGroup(pricingLimit, userGroup, g)
-								if groupPricingLimit.Evaluate(preferred.GetRatio()).Blocked {
+								groupPolicy := selectionPolicy.WithPricingLimit(
+									service.PricingLimitForGroup(selectionPolicy.PricingLimit, userGroup, g),
+								)
+								policyResult := groupPolicy.Evaluate(preferred)
+								if policyResult.SafetyBlocked {
+									affinityRejectedBySafety = true
+									continue
+								}
+								if policyResult.Blocked {
 									affinityRejectedByPricing = true
 									continue
 								}
@@ -144,8 +156,13 @@ func Distribute() func(c *gin.Context) {
 								break
 							}
 						} else if model.IsChannelEnabledForGroupModel(usingGroup, selectionModel, preferred.Id) {
-							groupPricingLimit := service.PricingLimitForGroup(pricingLimit, userGroup, usingGroup)
-							if groupPricingLimit.Evaluate(preferred.GetRatio()).Blocked {
+							groupPolicy := selectionPolicy.WithPricingLimit(
+								service.PricingLimitForGroup(selectionPolicy.PricingLimit, userGroup, usingGroup),
+							)
+							policyResult := groupPolicy.Evaluate(preferred)
+							if policyResult.SafetyBlocked {
+								affinityRejectedBySafety = true
+							} else if policyResult.Blocked {
 								affinityRejectedByPricing = true
 							} else {
 								channel = preferred
@@ -155,24 +172,29 @@ func Distribute() func(c *gin.Context) {
 							}
 						}
 					}
-					if !affinityUsable && !affinityRejectedByPricing && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
+					if !affinityUsable && !affinityRejectedByPricing && !affinityRejectedBySafety && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
 						service.ClearCurrentChannelAffinityCache(c)
 					}
 				}
 
 				if channel == nil {
 					channel, selectGroup, err = service.CacheGetRandomSatisfiedChannel(&service.RetryParam{
-						Ctx:          c,
-						ModelName:    selectionModel,
-						TokenGroup:   usingGroup,
-						RequestPath:  c.Request.URL.Path,
-						PricingLimit: pricingLimit,
-						Retry:        common.GetPointer(0),
+						Ctx:             c,
+						ModelName:       selectionModel,
+						TokenGroup:      usingGroup,
+						RequestPath:     c.Request.URL.Path,
+						SelectionPolicy: selectionPolicy,
+						Retry:           common.GetPointer(0),
 					})
 					if err != nil {
 						var pricingLimitErr *model.ChannelPricingLimitError
 						if errors.As(err, &pricingLimitErr) {
 							abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelPricingLimitMessage(c, modelRequest.Model, pricingLimitErr), types.ErrorCodeChannelPricingLimitExceeded)
+							return
+						}
+						var safetyLimitErr *model.ChannelSafetyLimitError
+						if errors.As(err, &safetyLimitErr) {
+							abortWithOpenAiMessage(c, http.StatusServiceUnavailable, ChannelSafetyLimitMessage(c, modelRequest.Model), types.ErrorCodeChannelSafetyLimitExceeded)
 							return
 						}
 						showGroup := usingGroup
@@ -219,6 +241,10 @@ func ChannelPricingLimitMessage(c *gin.Context, modelName string, limitErr *mode
 		"Model":    modelName,
 		"MaxRatio": limitErr.MaxChannelRatio,
 	})
+}
+
+func ChannelSafetyLimitMessage(c *gin.Context, modelName string) string {
+	return i18n.T(c, i18n.MsgDistributorChannelSafetyLimit, map[string]any{"Model": modelName})
 }
 
 // channelSupportsRequestPath reports whether a channel can serve the request path.

@@ -79,17 +79,27 @@ func GetChannel(group string, model string, retry int, requestPath string) (*Cha
 }
 
 func GetChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
-	return GetChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{})
+	return GetChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{AllowUnsafeChannels: true})
 }
 
 func GetChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
-	return GetChannelWithPricingLimit(group, model, retry, requestPath, excluded, ChannelPricingLimit{
-		MaxChannelRatio: maxChannelRatio,
-		ratioOnly:       true,
+	return GetChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{
+		AllowUnsafeChannels: true,
+		PricingLimit: ChannelPricingLimit{
+			MaxChannelRatio: maxChannelRatio,
+			ratioOnly:       true,
+		},
 	})
 }
 
 func GetChannelWithPricingLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, pricingLimit ChannelPricingLimit) (*Channel, error) {
+	return GetChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{
+		PricingLimit:        pricingLimit,
+		AllowUnsafeChannels: true,
+	})
+}
+
+func GetChannelWithSelectionPolicy(group string, model string, retry int, requestPath string, excluded map[int]struct{}, policy ChannelSelectionPolicy) (*Channel, error) {
 	var abilities []Ability
 	query := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
 	if excludedIDs := channelIDsFromSet(excluded); len(excludedIDs) > 0 {
@@ -117,6 +127,7 @@ func GetChannelWithPricingLimit(group string, model string, retry int, requestPa
 
 	eligible := make([]Ability, 0, len(abilities))
 	var pricingLimitErr *ChannelPricingLimitError
+	safetyBlocked := false
 	for _, ability := range abilities {
 		channel, ok := channelsByID[ability.ChannelId]
 		if !ok {
@@ -128,12 +139,16 @@ func GetChannelWithPricingLimit(group string, model string, retry int, requestPa
 				continue
 			}
 		}
-		limitResult := pricingLimit.Evaluate(channel.GetRatio())
-		if limitResult.Blocked {
+		policyResult := policy.Evaluate(channel)
+		if policyResult.SafetyBlocked {
+			safetyBlocked = true
+			continue
+		}
+		if policyResult.Blocked {
 			if pricingLimitErr == nil {
-				pricingLimitErr = NewChannelPricingLimitError(pricingLimit, limitResult)
+				pricingLimitErr = NewChannelPricingLimitError(policy.PricingLimit, policyResult.PricingResult)
 			} else {
-				pricingLimitErr.Consider(limitResult)
+				pricingLimitErr.Consider(policyResult.PricingResult)
 			}
 			continue
 		}
@@ -142,6 +157,9 @@ func GetChannelWithPricingLimit(group string, model string, retry int, requestPa
 	if len(eligible) == 0 {
 		if pricingLimitErr != nil {
 			return nil, pricingLimitErr
+		}
+		if safetyBlocked {
+			return nil, &ChannelSafetyLimitError{}
 		}
 		return nil, nil
 	}

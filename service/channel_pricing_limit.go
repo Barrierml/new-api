@@ -47,6 +47,17 @@ func ResolveTokenPricingLimit(c *gin.Context, originalModel string) model.Channe
 	return limit
 }
 
+func ResolveTokenChannelSelectionPolicy(c *gin.Context, originalModel string) model.ChannelSelectionPolicy {
+	return model.ChannelSelectionPolicy{
+		PricingLimit: ResolveTokenPricingLimit(c, originalModel),
+		AllowUnsafeChannels: common.GetContextKeyTypeOrDefault[bool](
+			c,
+			constant.ContextKeyTokenAllowUnsafeChannels,
+			model.LegacyTokenAllowUnsafeChannels,
+		),
+	}
+}
+
 func PricingLimitForGroup(limit model.ChannelPricingLimit, userGroup, group string) model.ChannelPricingLimit {
 	return limit.WithGroupRatio(GetUserGroupRatio(userGroup, group))
 }

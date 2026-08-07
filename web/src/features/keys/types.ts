@@ -71,6 +71,10 @@ export const apiKeySchema = z.object({
     .preprocess((v) => v ?? 999, z.number().nonnegative())
     .optional()
     .default(999),
+  allow_unsafe_channels: z
+    .preprocess((v) => v ?? true, z.boolean())
+    .optional()
+    .default(true),
 })
 
 export type ApiKey = z.infer<typeof apiKeySchema>
@@ -121,6 +125,7 @@ export interface ApiKeyFormData {
   billing_preference: ApiKeyBillingPreference
   max_channel_ratio: number
   max_input_price: number
+  allow_unsafe_channels: boolean
 }
 
 // ============================================================================

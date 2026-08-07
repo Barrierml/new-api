@@ -24,6 +24,8 @@ func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	maskedToken.MaxChannelRatio = &maxChannelRatio
 	maxInputPrice := token.GetMaxInputPrice()
 	maskedToken.MaxInputPrice = &maxInputPrice
+	allowUnsafeChannels := token.GetAllowUnsafeChannels()
+	maskedToken.AllowUnsafeChannels = &allowUnsafeChannels
 	return &maskedToken
 }
 
@@ -194,6 +196,10 @@ func AddToken(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if token.AllowUnsafeChannels == nil {
+		allowUnsafeChannels := model.DefaultTokenAllowUnsafeChannels
+		token.AllowUnsafeChannels = &allowUnsafeChannels
+	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
@@ -231,22 +237,23 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	cleanToken := model.Token{
-		UserId:             c.GetInt("id"),
-		Name:               token.Name,
-		Key:                key,
-		CreatedTime:        common.GetTimestamp(),
-		AccessedTime:       common.GetTimestamp(),
-		ExpiredTime:        token.ExpiredTime,
-		RemainQuota:        token.RemainQuota,
-		UnlimitedQuota:     token.UnlimitedQuota,
-		ModelLimitsEnabled: token.ModelLimitsEnabled,
-		ModelLimits:        token.ModelLimits,
-		AllowIps:           token.AllowIps,
-		Group:              token.Group,
-		CrossGroupRetry:    token.CrossGroupRetry,
-		BillingPreference:  token.BillingPreference,
-		MaxChannelRatio:    token.MaxChannelRatio,
-		MaxInputPrice:      token.MaxInputPrice,
+		UserId:              c.GetInt("id"),
+		Name:                token.Name,
+		Key:                 key,
+		CreatedTime:         common.GetTimestamp(),
+		AccessedTime:        common.GetTimestamp(),
+		ExpiredTime:         token.ExpiredTime,
+		RemainQuota:         token.RemainQuota,
+		UnlimitedQuota:      token.UnlimitedQuota,
+		ModelLimitsEnabled:  token.ModelLimitsEnabled,
+		ModelLimits:         token.ModelLimits,
+		AllowIps:            token.AllowIps,
+		Group:               token.Group,
+		CrossGroupRetry:     token.CrossGroupRetry,
+		BillingPreference:   token.BillingPreference,
+		MaxChannelRatio:     token.MaxChannelRatio,
+		MaxInputPrice:       token.MaxInputPrice,
+		AllowUnsafeChannels: token.AllowUnsafeChannels,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -346,6 +353,9 @@ func UpdateToken(c *gin.Context) {
 		}
 		if token.MaxInputPrice != nil {
 			cleanToken.MaxInputPrice = token.MaxInputPrice
+		}
+		if token.AllowUnsafeChannels != nil {
+			cleanToken.AllowUnsafeChannels = token.AllowUnsafeChannels
 		}
 	}
 	err = cleanToken.Update()
