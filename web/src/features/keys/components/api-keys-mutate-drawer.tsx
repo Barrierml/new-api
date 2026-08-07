@@ -52,6 +52,11 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -522,6 +527,72 @@ export function ApiKeysMutateDrawer({
                       )}
                     </FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='max_input_price'
+                render={({ field, fieldState }) => (
+                  <FormItem data-invalid={!!fieldState.error}>
+                    <FormLabel>{t('Maximum actual input price')}</FormLabel>
+                    <InputGroup>
+                      <InputGroupAddon>$</InputGroupAddon>
+                      <FormControl>
+                        <InputGroupInput
+                          {...field}
+                          type='number'
+                          min='0'
+                          step='0.01'
+                          value={
+                            Number.isFinite(field.value) ? field.value : ''
+                          }
+                          aria-invalid={!!fieldState.error}
+                          onChange={(event) => {
+                            field.onChange(
+                              event.target.value === ''
+                                ? undefined
+                                : event.target.valueAsNumber
+                            )
+                          }}
+                        />
+                      </FormControl>
+                      <InputGroupAddon align='inline-end'>
+                        / 1M tokens
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FormDescription>
+                      {t(
+                        'Channels are excluded only when both limits are exceeded. 0 disables the input price limit.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='allow_unsafe_channels'
+                render={({ field }) => (
+                  <FormItem className={sideDrawerSwitchItemClassName()}>
+                    <div className='flex flex-col gap-0.5'>
+                      <FormLabel className='text-sm'>
+                        {t('Allow unsafe channels')}
+                      </FormLabel>
+                      <FormDescription className='text-xs'>
+                        {t(
+                          'When disabled, only channels explicitly marked as security verified can be used, including during retries.'
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

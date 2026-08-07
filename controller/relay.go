@@ -12,7 +12,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
@@ -187,7 +186,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
 		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
 		RequestPath:     c.Request.URL.Path,
-		MaxChannelRatio: common.GetContextKeyTypeOrDefault[float64](c, constant.ContextKeyTokenMaxChannelRatio, 0),
+		SelectionPolicy: service.ResolveTokenChannelSelectionPolicy(c, relayInfo.OriginModelName),
 		Retry:           common.GetPointer(0),
 	}
 	relayInfo.RetryIndex = 0
@@ -319,7 +318,12 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	if lockedChannelID := service.GetLockedRetryChannelID(c); lockedChannelID > 0 {
 		channel, err := model.CacheGetChannel(lockedChannelID)
 		if err == nil {
-			if retryParam.MaxChannelRatio > 0 && channel.GetRatio() > retryParam.MaxChannelRatio {
+			groupPolicy := retryParam.SelectionPolicy.WithPricingLimit(service.PricingLimitForGroup(
+				retryParam.SelectionPolicy.PricingLimit,
+				info.UserGroup,
+				service.CurrentPricingGroup(c, info.UsingGroup),
+			))
+			if groupPolicy.Evaluate(channel).Blocked {
 				service.ClearLockedRetryChannel(c)
 			} else {
 				newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
@@ -337,13 +341,15 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	info.PriceData.GroupRatioInfo = helper.HandleGroupRatio(c, info)
 
 	if err != nil {
-		var ratioLimitErr *model.ChannelRatioLimitError
-		if errors.As(err, &ratioLimitErr) {
-			message := i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
-				"Model":    info.OriginModelName,
-				"MaxRatio": ratioLimitErr.MaxChannelRatio,
-			})
-			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelRatioLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+		var pricingLimitErr *model.ChannelPricingLimitError
+		if errors.As(err, &pricingLimitErr) {
+			message := middleware.ChannelPricingLimitMessage(c, info.OriginModelName, pricingLimitErr)
+			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelPricingLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
+		}
+		var safetyLimitErr *model.ChannelSafetyLimitError
+		if errors.As(err, &safetyLimitErr) {
+			message := middleware.ChannelSafetyLimitMessage(c, info.OriginModelName)
+			return nil, types.NewErrorWithStatusCode(errors.New(message), types.ErrorCodeChannelSafetyLimitExceeded, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
 		}
 		return nil, types.NewError(fmt.Errorf("获取分组 %s 下模型 %s 的可用渠道失败（retry）: %s", selectGroup, info.OriginModelName, err.Error()), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
@@ -551,7 +557,7 @@ func RelayTask(c *gin.Context) {
 		// SetupContextForSelectedChannel 仍用 OriginModelName,计费/日志按原始模型。
 		ModelName:       ratio_setting.ResolveGlobalMappedModel(relayInfo.OriginModelName),
 		RequestPath:     c.Request.URL.Path,
-		MaxChannelRatio: common.GetContextKeyTypeOrDefault[float64](c, constant.ContextKeyTokenMaxChannelRatio, 0),
+		SelectionPolicy: service.ResolveTokenChannelSelectionPolicy(c, relayInfo.OriginModelName),
 		Retry:           common.GetPointer(0),
 	}
 
@@ -560,12 +566,21 @@ func RelayTask(c *gin.Context) {
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
 			channel = lockedCh
-			if retryParam.MaxChannelRatio > 0 && channel.GetRatio() > retryParam.MaxChannelRatio {
-				message := i18n.T(c, i18n.MsgDistributorChannelRatioLimit, map[string]any{
-					"Model":    relayInfo.OriginModelName,
-					"MaxRatio": retryParam.MaxChannelRatio,
-				})
-				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelRatioLimitExceeded), http.StatusServiceUnavailable)
+			groupPolicy := retryParam.SelectionPolicy.WithPricingLimit(service.PricingLimitForGroup(
+				retryParam.SelectionPolicy.PricingLimit,
+				relayInfo.UserGroup,
+				service.CurrentPricingGroup(c, relayInfo.UsingGroup),
+			))
+			policyResult := groupPolicy.Evaluate(channel)
+			if policyResult.SafetyBlocked {
+				message := middleware.ChannelSafetyLimitMessage(c, relayInfo.OriginModelName)
+				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelSafetyLimitExceeded), http.StatusServiceUnavailable)
+				break
+			}
+			if policyResult.Blocked {
+				pricingLimitErr := model.NewChannelPricingLimitError(groupPolicy.PricingLimit, policyResult.PricingResult)
+				message := middleware.ChannelPricingLimitMessage(c, relayInfo.OriginModelName, pricingLimitErr)
+				taskErr = service.TaskErrorWrapperLocal(errors.New(message), string(types.ErrorCodeChannelPricingLimitExceeded), http.StatusServiceUnavailable)
 				break
 			}
 			if retryParam.GetRetry() > 0 {
@@ -579,7 +594,8 @@ func RelayTask(c *gin.Context) {
 			channel, channelErr = getChannel(c, relayInfo, retryParam)
 			if channelErr != nil {
 				logger.LogError(c, channelErr.Error())
-				if channelErr.GetErrorCode() == types.ErrorCodeChannelRatioLimitExceeded {
+				if channelErr.GetErrorCode() == types.ErrorCodeChannelPricingLimitExceeded ||
+					channelErr.GetErrorCode() == types.ErrorCodeChannelSafetyLimitExceeded {
 					taskErr = service.TaskErrorWrapperLocal(channelErr.Err, string(channelErr.GetErrorCode()), channelErr.StatusCode)
 					break
 				}

@@ -116,13 +116,30 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 }
 
 func GetRandomSatisfiedChannelWithExclusions(group string, model string, retry int, requestPath string, excluded map[int]struct{}) (*Channel, error) {
-	return GetRandomSatisfiedChannelWithRatioLimit(group, model, retry, requestPath, excluded, 0)
+	return GetRandomSatisfiedChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{AllowUnsafeChannels: true})
 }
 
 func GetRandomSatisfiedChannelWithRatioLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, maxChannelRatio float64) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{
+		AllowUnsafeChannels: true,
+		PricingLimit: ChannelPricingLimit{
+			MaxChannelRatio: maxChannelRatio,
+			ratioOnly:       true,
+		},
+	})
+}
+
+func GetRandomSatisfiedChannelWithPricingLimit(group string, model string, retry int, requestPath string, excluded map[int]struct{}, pricingLimit ChannelPricingLimit) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, ChannelSelectionPolicy{
+		PricingLimit:        pricingLimit,
+		AllowUnsafeChannels: true,
+	})
+}
+
+func GetRandomSatisfiedChannelWithSelectionPolicy(group string, model string, retry int, requestPath string, excluded map[int]struct{}, policy ChannelSelectionPolicy) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannelWithRatioLimit(group, model, retry, requestPath, excluded, maxChannelRatio)
+		return GetChannelWithSelectionPolicy(group, model, retry, requestPath, excluded, policy)
 	}
 
 	channelSyncLock.RLock()
@@ -152,26 +169,36 @@ func GetRandomSatisfiedChannelWithRatioLimit(group string, model string, retry i
 			return nil, nil
 		}
 	}
-	if maxChannelRatio > 0 {
-		filtered := make([]int, 0, len(channels))
-		minAvailableRatio := 0.0
-		for _, channelID := range channels {
-			channel, ok := channelsIDM[channelID]
-			if !ok {
-				return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelID)
-			}
-			ratio := channel.GetRatio()
-			if ratio <= maxChannelRatio {
-				filtered = append(filtered, channelID)
-				continue
-			}
-			if minAvailableRatio == 0 || ratio < minAvailableRatio {
-				minAvailableRatio = ratio
-			}
+	filtered := make([]int, 0, len(channels))
+	var pricingLimitErr *ChannelPricingLimitError
+	safetyBlocked := false
+	for _, channelID := range channels {
+		channel, ok := channelsIDM[channelID]
+		if !ok {
+			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelID)
 		}
-		channels = filtered
-		if len(channels) == 0 {
-			return nil, &ChannelRatioLimitError{MaxChannelRatio: maxChannelRatio, MinAvailableRatio: minAvailableRatio}
+		policyResult := policy.Evaluate(channel)
+		if policyResult.SafetyBlocked {
+			safetyBlocked = true
+			continue
+		}
+		if !policyResult.Blocked {
+			filtered = append(filtered, channelID)
+			continue
+		}
+		if pricingLimitErr == nil {
+			pricingLimitErr = NewChannelPricingLimitError(policy.PricingLimit, policyResult.PricingResult)
+		} else {
+			pricingLimitErr.Consider(policyResult.PricingResult)
+		}
+	}
+	channels = filtered
+	if len(channels) == 0 {
+		if pricingLimitErr != nil {
+			return nil, pricingLimitErr
+		}
+		if safetyBlocked {
+			return nil, &ChannelSafetyLimitError{}
 		}
 	}
 

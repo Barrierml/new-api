@@ -21,8 +21,7 @@ import { describe, test } from 'node:test'
 
 import type { TFunction } from 'i18next'
 
-import type { ApiKey } from '../../types'
-import { apiKeySchema } from '../../types'
+import { apiKeySchema, type ApiKey } from '../../types'
 import {
   API_KEY_FORM_DEFAULT_VALUES,
   getApiKeyFormSchema,
@@ -48,6 +47,8 @@ const apiKey: ApiKey = {
   allow_ips: '',
   billing_preference: '',
   max_channel_ratio: 0,
+  max_input_price: 999,
+  allow_unsafe_channels: false,
 }
 
 describe('API key billing preference form mapping', () => {
@@ -70,20 +71,24 @@ describe('API key billing preference form mapping', () => {
   })
 })
 
-describe('API key channel ratio form mapping', () => {
-  test('defaults to 0 (unlimited) as the maximum channel ratio', () => {
+describe('API key pricing limit form mapping', () => {
+  test('uses the default channel ratio and input price limits', () => {
     const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
     assert.equal(payload.max_channel_ratio, 0)
+    assert.equal(payload.max_input_price, 999)
   })
 
-  test('preserves a custom maximum channel ratio through form conversion', () => {
+  test('preserves custom pricing limits through form conversion', () => {
     const formValues = transformApiKeyToFormDefaults({
       ...apiKey,
       max_channel_ratio: 1.5,
+      max_input_price: 12.5,
     })
     const payload = transformFormDataToPayload(formValues)
     assert.equal(formValues.max_channel_ratio, 1.5)
     assert.equal(payload.max_channel_ratio, 1.5)
+    assert.equal(formValues.max_input_price, 12.5)
+    assert.equal(payload.max_input_price, 12.5)
   })
 
   test('rejects an empty or negative maximum channel ratio', () => {
@@ -113,9 +118,62 @@ describe('API key channel ratio form mapping', () => {
     const schema = getApiKeyFormSchema(t)
     const result = schema.safeParse({
       ...API_KEY_FORM_DEFAULT_VALUES,
+      name: 'unlimited-channel-ratio-key',
       max_channel_ratio: 0,
     })
     assert.equal(result.success, true)
+  })
+
+  test('allows zero to disable the input price limit', () => {
+    const t = ((key: string) => key) as TFunction
+    const result = getApiKeyFormSchema(t).safeParse({
+      ...API_KEY_FORM_DEFAULT_VALUES,
+      name: 'zero-input-price-key',
+      max_input_price: 0,
+    })
+
+    assert.equal(result.success, true)
+  })
+
+  test('rejects an empty or negative input price limit', () => {
+    const t = ((key: string) => key) as TFunction
+    const schema = getApiKeyFormSchema(t)
+
+    for (const maxInputPrice of [undefined, -1]) {
+      const result = schema.safeParse({
+        ...API_KEY_FORM_DEFAULT_VALUES,
+        max_input_price: maxInputPrice,
+      })
+
+      assert.equal(result.success, false)
+      if (!result.success) {
+        assert.equal(
+          result.error.issues.find(
+            (issue) => issue.path[0] === 'max_input_price'
+          )?.message,
+          'Input price must be zero or greater'
+        )
+      }
+    }
+  })
+})
+
+describe('API key channel safety form mapping', () => {
+  test('disallows unsafe channels for newly created keys by default', () => {
+    const payload = transformFormDataToPayload(API_KEY_FORM_DEFAULT_VALUES)
+
+    assert.equal(payload.allow_unsafe_channels, false)
+  })
+
+  test('preserves an explicit unsafe-channel choice through form conversion', () => {
+    const formValues = transformApiKeyToFormDefaults({
+      ...apiKey,
+      allow_unsafe_channels: true,
+    })
+    const payload = transformFormDataToPayload(formValues)
+
+    assert.equal(formValues.allow_unsafe_channels, true)
+    assert.equal(payload.allow_unsafe_channels, true)
   })
 })
 
@@ -125,20 +183,37 @@ describe('apiKeySchema legacy row tolerance', () => {
       ...apiKey,
       billing_preference: null,
       max_channel_ratio: null,
+      max_input_price: null,
+      allow_unsafe_channels: null,
     })
     assert.equal(parsed.billing_preference, '')
     assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 999)
+    assert.equal(parsed.allow_unsafe_channels, true)
   })
 
   test('accepts rows where the new fields are missing entirely', () => {
-    const { billing_preference: _bp, max_channel_ratio: _mcr, ...rest } = apiKey
+    const {
+      billing_preference: _bp,
+      max_channel_ratio: _mcr,
+      max_input_price: _mip,
+      allow_unsafe_channels: _auc,
+      ...rest
+    } = apiKey
     const parsed = apiKeySchema.parse(rest)
     assert.equal(parsed.billing_preference, '')
     assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 999)
+    assert.equal(parsed.allow_unsafe_channels, true)
   })
 
-  test('accepts 0 (unlimited) as a stored maximum channel ratio', () => {
-    const parsed = apiKeySchema.parse({ ...apiKey, max_channel_ratio: 0 })
+  test('accepts 0 as stored unlimited pricing limits', () => {
+    const parsed = apiKeySchema.parse({
+      ...apiKey,
+      max_channel_ratio: 0,
+      max_input_price: 0,
+    })
     assert.equal(parsed.max_channel_ratio, 0)
+    assert.equal(parsed.max_input_price, 0)
   })
 })

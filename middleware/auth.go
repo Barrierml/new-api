@@ -504,6 +504,8 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
 	common.SetContextKey(c, constant.ContextKeyTokenBillingPreference, token.BillingPreference)
 	common.SetContextKey(c, constant.ContextKeyTokenMaxChannelRatio, token.GetMaxChannelRatio())
+	common.SetContextKey(c, constant.ContextKeyTokenMaxInputPrice, token.GetMaxInputPrice())
+	common.SetContextKey(c, constant.ContextKeyTokenAllowUnsafeChannels, token.GetAllowUnsafeChannels())
 	if len(parts) > 1 {
 		if model.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])

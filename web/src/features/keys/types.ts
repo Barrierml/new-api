@@ -58,7 +58,7 @@ export const apiKeySchema = z.object({
   model_limits: z.string().nullish().default(''),
   allow_ips: z.string().nullish().default(''),
   // 后端对未设置的 key 返回 NULL(PR #2/#3 合并前的存量 key)或 0/''(新默认值),
-  // 这里统一归一化:null/缺失 → ''/0,避免 apiKeySchema.parse 在行操作里整行抛错。
+  // 这里统一归一化,避免 apiKeySchema.parse 在行操作里整行抛错。
   billing_preference: z
     .preprocess((v) => v ?? '', apiKeyBillingPreferenceSchema)
     .optional()
@@ -67,6 +67,14 @@ export const apiKeySchema = z.object({
     .preprocess((v) => v ?? 0, z.number().nonnegative())
     .optional()
     .default(0),
+  max_input_price: z
+    .preprocess((v) => v ?? 999, z.number().nonnegative())
+    .optional()
+    .default(999),
+  allow_unsafe_channels: z
+    .preprocess((v) => v ?? true, z.boolean())
+    .optional()
+    .default(true),
 })
 
 export type ApiKey = z.infer<typeof apiKeySchema>
@@ -116,6 +124,8 @@ export interface ApiKeyFormData {
   cross_group_retry: boolean
   billing_preference: ApiKeyBillingPreference
   max_channel_ratio: number
+  max_input_price: number
+  allow_unsafe_channels: boolean
 }
 
 // ============================================================================

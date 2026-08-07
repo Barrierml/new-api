@@ -40,6 +40,7 @@ type tokenResponseItem struct {
 	Status            int     `json:"status"`
 	BillingPreference string  `json:"billing_preference"`
 	MaxChannelRatio   float64 `json:"max_channel_ratio"`
+	MaxInputPrice     float64 `json:"max_input_price"`
 }
 
 type tokenKeyResponse struct {
@@ -636,7 +637,7 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	}
 }
 
-func TestAddTokenDefaultsMaxChannelRatio(t *testing.T) {
+func TestAddTokenDefaultsPricingLimits(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	body := map[string]any{
 		"name":                 "default-ratio-key",
@@ -658,6 +659,8 @@ func TestAddTokenDefaultsMaxChannelRatio(t *testing.T) {
 	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
 	require.NotNil(t, token.MaxChannelRatio)
 	assert.Equal(t, model.DefaultTokenMaxChannelRatio, *token.MaxChannelRatio)
+	require.NotNil(t, token.MaxInputPrice)
+	assert.Equal(t, model.DefaultTokenMaxInputPrice, *token.MaxInputPrice)
 }
 
 func TestAddTokenAcceptsZeroMaxChannelRatioAsUnlimited(t *testing.T) {
@@ -686,35 +689,49 @@ func TestAddTokenAcceptsZeroMaxChannelRatioAsUnlimited(t *testing.T) {
 	assert.Equal(t, 0.0, token.GetMaxChannelRatio())
 }
 
-func TestAddTokenRejectsNegativeMaxChannelRatio(t *testing.T) {
-	db := setupTokenControllerTestDB(t)
-	body := map[string]any{
-		"name":                 "invalid-ratio-key",
-		"expired_time":         -1,
-		"remain_quota":         100,
-		"unlimited_quota":      true,
-		"model_limits_enabled": false,
-		"model_limits":         "",
-		"group":                "default",
-		"cross_group_retry":    false,
-		"max_channel_ratio":    -1,
+func TestAddTokenRejectsInvalidPricingLimits(t *testing.T) {
+	tests := []struct {
+		name  string
+		field string
+		value float64
+	}{
+		{name: "channel ratio cannot be negative", field: "max_channel_ratio", value: -1},
+		{name: "input price cannot be negative", field: "max_input_price", value: -1},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db := setupTokenControllerTestDB(t)
+			body := map[string]any{
+				"name":                 "invalid-pricing-key",
+				"expired_time":         -1,
+				"remain_quota":         100,
+				"unlimited_quota":      true,
+				"model_limits_enabled": false,
+				"model_limits":         "",
+				"group":                "default",
+				"cross_group_retry":    false,
+				test.field:             test.value,
+			}
 
-	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
-	AddToken(ctx)
+			ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+			AddToken(ctx)
 
-	response := decodeAPIResponse(t, recorder)
-	assert.False(t, response.Success)
-	var count int64
-	require.NoError(t, db.Model(&model.Token{}).Count(&count).Error)
-	assert.Zero(t, count)
+			response := decodeAPIResponse(t, recorder)
+			assert.False(t, response.Success)
+			var count int64
+			require.NoError(t, db.Model(&model.Token{}).Count(&count).Error)
+			assert.Zero(t, count)
+		})
+	}
 }
 
-func TestUpdateTokenPersistsAndPreservesMaxChannelRatio(t *testing.T) {
+func TestUpdateTokenPersistsAndPreservesPricingLimits(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	token := seedToken(t, db, 1, "editable-ratio-key", "ratio1234token5678")
 	initialRatio := 2.5
 	require.NoError(t, db.Model(token).Update("max_channel_ratio", initialRatio).Error)
+	initialInputPrice := 8.0
+	require.NoError(t, db.Model(token).Update("max_input_price", initialInputPrice).Error)
 
 	body := map[string]any{
 		"id":                   token.Id,
@@ -727,6 +744,7 @@ func TestUpdateTokenPersistsAndPreservesMaxChannelRatio(t *testing.T) {
 		"group":                "default",
 		"cross_group_retry":    false,
 		"max_channel_ratio":    1.5,
+		"max_input_price":      4.5,
 	}
 	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
 	UpdateToken(ctx)
@@ -736,8 +754,11 @@ func TestUpdateTokenPersistsAndPreservesMaxChannelRatio(t *testing.T) {
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	require.NotNil(t, updated.MaxChannelRatio)
 	assert.Equal(t, 1.5, *updated.MaxChannelRatio)
+	require.NotNil(t, updated.MaxInputPrice)
+	assert.Equal(t, 4.5, *updated.MaxInputPrice)
 
 	delete(body, "max_channel_ratio")
+	delete(body, "max_input_price")
 	body["name"] = "renamed-ratio-key"
 	ctx, recorder = newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
 	UpdateToken(ctx)
@@ -746,4 +767,30 @@ func TestUpdateTokenPersistsAndPreservesMaxChannelRatio(t *testing.T) {
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	require.NotNil(t, updated.MaxChannelRatio)
 	assert.Equal(t, 1.5, *updated.MaxChannelRatio)
+	require.NotNil(t, updated.MaxInputPrice)
+	assert.Equal(t, 4.5, *updated.MaxInputPrice)
+}
+
+func TestAddTokenAllowsZeroMaxInputPrice(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "unlimited-input-price-key",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+		"max_input_price":      0,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+	require.True(t, decodeAPIResponse(t, recorder).Success)
+
+	var token model.Token
+	require.NoError(t, db.Where("user_id = ?", 1).First(&token).Error)
+	require.NotNil(t, token.MaxInputPrice)
+	assert.Zero(t, *token.MaxInputPrice)
 }

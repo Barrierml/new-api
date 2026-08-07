@@ -15,7 +15,12 @@ import (
 // DefaultTokenMaxChannelRatio 是未显式设置 key 的默认渠道倍率上限。
 // 0 = 不限制(过滤逻辑只在 maxChannelRatio > 0 时生效)——高倍率渠道默认可用,
 // 需要管控时在 key 上显式设置正值。
-const DefaultTokenMaxChannelRatio = 0.0
+const (
+	DefaultTokenMaxChannelRatio     = 0.0
+	DefaultTokenMaxInputPrice       = 999.0
+	DefaultTokenAllowUnsafeChannels = false
+	LegacyTokenAllowUnsafeChannels  = true
+)
 
 type Token struct {
 	Id                 int     `json:"id"`
@@ -35,9 +40,18 @@ type Token struct {
 	Group              string  `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
 	// BillingPreference 令牌级扣费策略，空字符串表示跟随用户设置
-	BillingPreference string         `json:"billing_preference" gorm:"default:''"`
-	MaxChannelRatio   *float64       `json:"max_channel_ratio"`
-	DeletedAt         gorm.DeletedAt `gorm:"index"`
+	BillingPreference   string         `json:"billing_preference" gorm:"default:''"`
+	MaxChannelRatio     *float64       `json:"max_channel_ratio"`
+	MaxInputPrice       *float64       `json:"max_input_price"` // USD per 1M text input tokens
+	AllowUnsafeChannels *bool          `json:"allow_unsafe_channels"`
+	DeletedAt           gorm.DeletedAt `gorm:"index"`
+}
+
+func (token *Token) GetAllowUnsafeChannels() bool {
+	if token == nil || token.AllowUnsafeChannels == nil {
+		return LegacyTokenAllowUnsafeChannels
+	}
+	return *token.AllowUnsafeChannels
 }
 
 func (token *Token) GetMaxChannelRatio() float64 {
@@ -53,6 +67,20 @@ func (token *Token) GetMaxChannelRatio() float64 {
 // IsValidTokenMaxChannelRatio 允许 0(不限制)或任意正有限值;负值/NaN/Inf 非法。
 func IsValidTokenMaxChannelRatio(ratio float64) bool {
 	return ratio >= 0 && !math.IsNaN(ratio) && !math.IsInf(ratio, 0)
+}
+
+func (token *Token) GetMaxInputPrice() float64 {
+	if token == nil || token.MaxInputPrice == nil {
+		return DefaultTokenMaxInputPrice
+	}
+	if !IsValidTokenMaxInputPrice(*token.MaxInputPrice) {
+		return DefaultTokenMaxInputPrice
+	}
+	return *token.MaxInputPrice
+}
+
+func IsValidTokenMaxInputPrice(price float64) bool {
+	return price >= 0 && !math.IsNaN(price) && !math.IsInf(price, 0)
 }
 
 func (token *Token) Clean() {
@@ -308,6 +336,10 @@ func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 }
 
 func (token *Token) Insert() error {
+	if token.AllowUnsafeChannels == nil {
+		allowUnsafeChannels := DefaultTokenAllowUnsafeChannels
+		token.AllowUnsafeChannels = &allowUnsafeChannels
+	}
 	var err error
 	err = DB.Create(token).Error
 	return err
@@ -326,7 +358,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "billing_preference", "max_channel_ratio").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "billing_preference", "max_channel_ratio", "max_input_price", "allow_unsafe_channels").Updates(token).Error
 	return err
 }
 

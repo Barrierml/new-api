@@ -85,26 +85,42 @@ func createMiddlewarePATUser(t *testing.T, username, token string) *model.User {
 	return user
 }
 
-func TestSetupContextForTokenIncludesEffectiveMaxChannelRatio(t *testing.T) {
+func TestSetupContextForTokenIncludesEffectivePricingLimits(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	maxChannelRatio := 1.5
+	maxInputPrice := 2.5
+	allowUnsafeChannels := false
 	token := &model.Token{
-		Id:              93,
-		UserId:          94,
-		Key:             "ratio-context-key",
-		MaxChannelRatio: &maxChannelRatio,
+		Id:                  93,
+		UserId:              94,
+		Key:                 "ratio-context-key",
+		MaxChannelRatio:     &maxChannelRatio,
+		MaxInputPrice:       &maxInputPrice,
+		AllowUnsafeChannels: &allowUnsafeChannels,
 	}
 
 	require.NoError(t, SetupContextForToken(ctx, token))
 	ratio, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyTokenMaxChannelRatio)
 	require.True(t, ok)
 	assert.Equal(t, 1.5, ratio)
+	inputPrice, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyTokenMaxInputPrice)
+	require.True(t, ok)
+	assert.Equal(t, 2.5, inputPrice)
+	unsafeAllowed, ok := common.GetContextKeyType[bool](ctx, constant.ContextKeyTokenAllowUnsafeChannels)
+	require.True(t, ok)
+	assert.False(t, unsafeAllowed)
 
 	defaultCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	require.NoError(t, SetupContextForToken(defaultCtx, &model.Token{}))
 	defaultRatio, ok := common.GetContextKeyType[float64](defaultCtx, constant.ContextKeyTokenMaxChannelRatio)
 	require.True(t, ok)
 	assert.Equal(t, model.DefaultTokenMaxChannelRatio, defaultRatio)
+	defaultInputPrice, ok := common.GetContextKeyType[float64](defaultCtx, constant.ContextKeyTokenMaxInputPrice)
+	require.True(t, ok)
+	assert.Equal(t, model.DefaultTokenMaxInputPrice, defaultInputPrice)
+	legacyUnsafeAllowed, ok := common.GetContextKeyType[bool](defaultCtx, constant.ContextKeyTokenAllowUnsafeChannels)
+	require.True(t, ok)
+	assert.True(t, legacyUnsafeAllowed)
 }
 
 func TestUserAuthAllowsOpaqueDottedPAT(t *testing.T) {
